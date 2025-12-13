@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 from io import BytesIO
+from PIL import Image
 
 # =========================
 # إعداد الصفحة
@@ -11,6 +12,11 @@ st.set_page_config(
     page_icon="📖",
     layout="wide"
 )
+
+# عرض الصورة كعنوان أعلى الصفحة (مضغوطة وشفافة)
+# =========================
+header_img = Image.open("assets/header.png")
+st.image(header_img, use_container_width=True)
 
 # =========================
 # دالة إزالة التشكيل
@@ -128,4 +134,3 @@ elif search_type == "عرض السورة كاملة":
     for _, row in df.iterrows():
         st.markdown(f"**({row['ayah_number']})**")
         st.markdown(f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>', unsafe_allow_html=True)
-
