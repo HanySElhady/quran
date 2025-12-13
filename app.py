@@ -62,7 +62,7 @@ def highlight_chars(original, keyword_clean):
     for char in original:
         char_clean = remove_tashkeel(char)
         if char_clean in keyword_clean and char_clean not in seen:
-            result += f'<span style="color:green;">{char}</span>'
+            result += f'<span style="color:gold;">{char}</span>'
             seen.add(char_clean)
         else:
             result += char
@@ -128,3 +128,4 @@ elif search_type == "عرض السورة كاملة":
     for _, row in df.iterrows():
         st.markdown(f"**({row['ayah_number']})**")
         st.markdown(f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>', unsafe_allow_html=True)
+
