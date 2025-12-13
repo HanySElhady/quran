@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import re
-import openpyxl
 # إعداد الصفحة
 st.set_page_config(
     page_title="البحث في القرآن الكريم",
@@ -123,4 +122,5 @@ elif search_type == "عرض السورة كاملة":
             """,
             unsafe_allow_html=True
         )
+
 
