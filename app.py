@@ -62,7 +62,7 @@ def highlight_chars(original, keyword_clean):
     for char in original:
         char_clean = remove_tashkeel(char)
         if char_clean in keyword_clean and char_clean not in seen:
-            result += f'<span style="color:lightgreen;">{char}</span>'
+            result += f'<span style="color:lightgreen; font-weight:bold;">{char}</span>'
             seen.add(char_clean)
         else:
             result += char
@@ -86,10 +86,11 @@ if search_type == "بحث بكلمة":
 
         ayah_list_for_export = []
 
+        # عرض النتائج مباشرة بدون Expander
         for _, row in results.iterrows():
             highlighted_ayah = highlight_chars(row["ayah_text"], keyword_clean)
-            with st.expander(f"آية رقم {row['ayah_number']}"):
-                st.markdown(f'<div style="font-size:18px; line-height:2;">{highlighted_ayah}</div>', unsafe_allow_html=True)
+            st.markdown(f"**آية رقم {row['ayah_number']}**")
+            st.markdown(f'<div style="font-size:18px; line-height:2;">{highlighted_ayah}</div>', unsafe_allow_html=True)
             ayah_list_for_export.append({"ayah_number": row['ayah_number'], "ayah_text": row['ayah_text']})
 
         # =========================
@@ -104,7 +105,6 @@ if search_type == "بحث بكلمة":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        
 # =========================
 # 🔢 بحث برقم الآية
 # =========================
@@ -128,5 +128,3 @@ elif search_type == "عرض السورة كاملة":
     for _, row in df.iterrows():
         st.markdown(f"**({row['ayah_number']})**")
         st.markdown(f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>', unsafe_allow_html=True)
-
-
