@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import re
 from io import BytesIO
-from fpdf import FPDF
 
 # =========================
 # إعداد الصفحة
@@ -63,7 +62,7 @@ def highlight_chars(original, keyword_clean):
     for char in original:
         char_clean = remove_tashkeel(char)
         if char_clean in keyword_clean and char_clean not in seen:
-            result += f'<span style="color:red;">{char}</span>'
+            result += f'<span style="color:green;">{char}</span>'
             seen.add(char_clean)
         else:
             result += char
