@@ -3,6 +3,7 @@ import pandas as pd
 import re
 from io import BytesIO
 from PIL import Image
+import os
 
 # =========================
 # إعداد الصفحة
@@ -13,36 +14,61 @@ st.set_page_config(
     layout="wide"
 )
 
-# عرض الصورة كعنوان أعلى الصفحة (مضغوطة وشفافة)
+# =========================
+# صورة العنوان
 # =========================
 header_img = Image.open("assets/header.png")
 st.image(header_img, use_container_width=True)
 
 # =========================
-# دالة إزالة التشكيل
+# إزالة التشكيل
 # =========================
 def remove_tashkeel(text):
-    tashkeel = re.compile(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]')
-    return tashkeel.sub('', text)
+    tashkeel = re.compile(
+        r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]'
+    )
+    return tashkeel.sub('', str(text))
 
 # =========================
-# تحميل البيانات
+# قراءة ملفات السور من فولدر data
 # =========================
 @st.cache_data
-def load_data():
-    try:
-        return pd.read_excel("data/surat_al_baqara.xlsx")
-    except FileNotFoundError:
-        st.error("ملف البيانات غير موجود")
-        st.stop()
+def get_surah_files():
+    files = {}
+    for file in os.listdir("data"):
+        if file.endswith(".xlsx"):
+            surah_name = file.replace(".xlsx", "").replace("_", " ")
+            files[surah_name] = os.path.join("data", file)
+    return files
 
-df = load_data()
+surah_files = get_surah_files()
+
+if not surah_files:
+    st.error("لا يوجد ملفات سور داخل مجلد data")
+    st.stop()
+
+# =========================
+# اختيار السورة
+# =========================
+selected_surah = st.selectbox(
+    "اختر السورة",
+    list(surah_files.keys())
+)
+
+# =========================
+# تحميل السورة المختارة
+# =========================
+@st.cache_data
+def load_data(file_path):
+    return pd.read_excel(file_path)
+
+df = load_data(surah_files[selected_surah])
 
 # =========================
 # العنوان الرئيسي
 # =========================
 st.title("📖 البحث في القرآن الكريم")
-st.subheader("سورة البقرة")
+st.subheader(selected_surah)
 st.divider()
 
 # =========================
@@ -60,7 +86,7 @@ search_type = st.radio(
 st.divider()
 
 # =========================
-# دالة لتلوين الحروف الموجودة في البحث
+# تلوين الحروف (بدون تكرار)
 # =========================
 def highlight_chars(original, keyword_clean):
     result = ""
@@ -75,14 +101,14 @@ def highlight_chars(original, keyword_clean):
     return result
 
 # =========================
-# 🔍 بحث بالكلمة / الحروف
+# 🔍 بحث بالكلمة / الحروف (كما هو)
 # =========================
 if search_type == "بحث بكلمة":
     keyword = st.text_input("اكتب الحروف للبحث داخل الآيات")
+
     if keyword:
         keyword_clean = remove_tashkeel(keyword)
 
-        # البحث: أي آية تحتوي على جميع الحروف الموجودة في البحث
         def matches_all_chars(ayah):
             ayah_clean = remove_tashkeel(ayah)
             return all(char in ayah_clean for char in keyword_clean)
@@ -90,26 +116,32 @@ if search_type == "بحث بكلمة":
         results = df[df["ayah_text"].apply(matches_all_chars)]
         st.write(f"عدد النتائج: {len(results)}")
 
-        ayah_list_for_export = []
+        export_rows = []
 
-        # عرض النتائج مباشرة بدون Expander
         for _, row in results.iterrows():
             highlighted_ayah = highlight_chars(row["ayah_text"], keyword_clean)
             st.markdown(f"**آية رقم {row['ayah_number']}**")
-            st.markdown(f'<div style="font-size:18px; line-height:2;">{highlighted_ayah}</div>', unsafe_allow_html=True)
-            ayah_list_for_export.append({"ayah_number": row['ayah_number'], "ayah_text": row['ayah_text']})
+            st.markdown(
+                f'<div style="font-size:18px; line-height:2;">{highlighted_ayah}</div>',
+                unsafe_allow_html=True
+            )
 
-        # =========================
-        # تصدير النتائج Excel
-        # =========================
-        excel_buffer = BytesIO()
-        pd.DataFrame(ayah_list_for_export).to_excel(excel_buffer, index=False)
-        st.download_button(
-            label="تصدير النتائج Excel",
-            data=excel_buffer.getvalue(),
-            file_name="search_results.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+            export_rows.append({
+                "ayah_number": row["ayah_number"],
+                "ayah_text": row["ayah_text"]
+            })
+
+        # تصدير Excel
+        if export_rows:
+            buffer = BytesIO()
+            pd.DataFrame(export_rows).to_excel(buffer, index=False)
+
+            st.download_button(
+                label="تصدير النتائج Excel",
+                data=buffer.getvalue(),
+                file_name=f"{selected_surah}_search_results.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 # =========================
 # 🔢 بحث برقم الآية
@@ -121,11 +153,15 @@ elif search_type == "بحث برقم الآية":
         max_value=int(df["ayah_number"].max()),
         step=1
     )
+
     result = df[df["ayah_number"] == ayah_number]
     if not result.empty:
         ayah_text = result.iloc[0]["ayah_text"]
         st.markdown(f"### آية رقم {ayah_number}")
-        st.markdown(f'<div style="font-size:20px; line-height:2;">{ayah_text}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="font-size:20px; line-height:2;">{ayah_text}</div>',
+            unsafe_allow_html=True
+        )
 
 # =========================
 # 📖 عرض السورة كاملة
@@ -133,4 +169,7 @@ elif search_type == "بحث برقم الآية":
 elif search_type == "عرض السورة كاملة":
     for _, row in df.iterrows():
         st.markdown(f"**({row['ayah_number']})**")
-        st.markdown(f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>',
+            unsafe_allow_html=True
+        )
