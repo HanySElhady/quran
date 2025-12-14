@@ -11,7 +11,7 @@ import os
 st.set_page_config(
     page_title="البحث في القرآن الكريم",
     page_icon="📖",
-    layout="wide"
+    #layout="wide"
 )
 
 # =========================
