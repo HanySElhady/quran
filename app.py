@@ -30,20 +30,16 @@ def remove_tashkeel(text):
     return tashkeel.sub('', str(text))
 
 # =========================
-# قراءة ملفات السور من فولدر data وترتيبها
+# قراءة ملفات السور من فولدر data
 # =========================
 @st.cache_data
 def get_surah_files():
-    files = []
+    files = {}
     for file in os.listdir("data"):
         if file.endswith(".xlsx"):
-            match = re.match(r"(\d+)_", file)
-            number = int(match.group(1)) if match else 0
             surah_name = file.replace(".xlsx", "").replace("_", " ")
-            files.append((number, surah_name, os.path.join("data", file)))
-    # ترتيب القائمة حسب الرقم
-    files.sort(key=lambda x: x[0])
-    return files  # نعيدها كقائمة مرتبة
+            files[surah_name] = os.path.join("data", file)
+    return files
 
 surah_files = get_surah_files()
 
@@ -52,17 +48,14 @@ if not surah_files:
     st.stop()
 
 # =========================
-# اختيار السورة مع الاحتفاظ بالترتيب
+# اختيار السورة
 # =========================
-surah_names = [name for _, name, _ in surah_files] 
-# selectbox للاختيار
 selected_surah = st.selectbox(
     "اختر السورة",
-    surah_names
+    list(surah_files.keys())
 )
-# الحصول على مسار الملف المختار
-selected_file_path = next(path for number, name, path in surah_files if name == selected_surah)
-st.write("مسار الملف:", selected_file_path)
+
+# =========================
 # تحميل السورة المختارة
 # =========================
 @st.cache_data
@@ -180,6 +173,3 @@ elif search_type == "عرض السورة كاملة":
             f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>',
             unsafe_allow_html=True
         )
-
-
-
