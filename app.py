@@ -37,15 +37,13 @@ def get_surah_files():
     files = []
     for file in os.listdir("data"):
         if file.endswith(".xlsx"):
-            # استخراج الرقم في بداية الاسم
             match = re.match(r"(\d+)_", file)
             number = int(match.group(1)) if match else 0
             surah_name = file.replace(".xlsx", "").replace("_", " ")
             files.append((number, surah_name, os.path.join("data", file)))
     # ترتيب القائمة حسب الرقم
     files.sort(key=lambda x: x[0])
-    # تحويلها لقاموس {اسم السورة: المسار}
-    return {name: path for _, name, path in files}
+    return files  # نعيدها كقائمة مرتبة
 
 surah_files = get_surah_files()
 
@@ -54,13 +52,16 @@ if not surah_files:
     st.stop()
 
 # =========================
-# اختيار السورة
+# اختيار السورة مع الاحتفاظ بالترتيب
 # =========================
+surah_names = [name for _, name, _ in surah_files]  # قائمة الأسماء فقط
 selected_surah = st.selectbox(
     "اختر السورة",
-    list(surah_files.keys())
+    surah_names
 )
-# =========================
+
+# مسار الملف المختار
+selected_file_path = next(path for number, name, path in surah_files if name == selected_surah)# =========================
 # تحميل السورة المختارة
 # =========================
 @st.cache_data
@@ -178,4 +179,5 @@ elif search_type == "عرض السورة كاملة":
             f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>',
             unsafe_allow_html=True
         )
+
 
