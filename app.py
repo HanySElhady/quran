@@ -54,14 +54,15 @@ if not surah_files:
 # =========================
 # اختيار السورة مع الاحتفاظ بالترتيب
 # =========================
-surah_names = [name for _, name, _ in surah_files]  # قائمة الأسماء فقط
+surah_names = [name for _, name, _ in surah_files] 
+# selectbox للاختيار
 selected_surah = st.selectbox(
     "اختر السورة",
     surah_names
 )
-
-# مسار الملف المختار
-selected_file_path = next(path for number, name, path in surah_files if name == selected_surah)# =========================
+# الحصول على مسار الملف المختار
+selected_file_path = next(path for number, name, path in surah_files if name == selected_surah)
+st.write("مسار الملف:", selected_file_path)
 # تحميل السورة المختارة
 # =========================
 @st.cache_data
@@ -179,5 +180,6 @@ elif search_type == "عرض السورة كاملة":
             f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>',
             unsafe_allow_html=True
         )
+
 
 
