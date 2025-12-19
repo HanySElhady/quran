@@ -109,43 +109,43 @@ st.divider()
 # =========================
 search_type = st.radio(
     "اختر نوع البحث",
-    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"],
+    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة", "بحث بكلمة"],
     horizontal=True
 )
 st.divider()
 
 # =========================
-# 🔍 دالة تظليل الحروف بدون تكرار
+# 🔍 دالة تظليل الحروف كما هي بالمدخل بالضبط
 # =========================
-def highlight_chars_unique(text, keyword):
-    keyword_clean = list(set(remove_tashkeel(keyword)))  # كل حرف مرة واحدة فقط
+def highlight_chars_as_input(text, keyword):
+    keyword_clean = remove_tashkeel(keyword)  # نحافظ على كل حرف كما هو بالترتيب والتكرار
     highlighted = ""
-    highlighted_chars = set()
-    
+    used_indices = []  # لتتبع عدد كل حرف الذي تم تظليله حسب المدخل
+
     for char in text:
         char_clean = remove_tashkeel(char)
-        if char_clean in keyword_clean and char_clean not in highlighted_chars:
+        if char_clean in keyword_clean and used_indices.count(char_clean) < keyword_clean.count(char_clean):
             highlighted += f'<span style="color:green; font-weight:bold;">{char}</span>'
-            highlighted_chars.add(char_clean)
+            used_indices.append(char_clean)
         else:
             highlighted += char
     return highlighted
 
 # =========================
-# 🔍 بحث حروف الكلمة بدون ترتيب وبدون تكرار التظليل
+# 🔍 بحث حروف الكلمة بدون ترتيب لكن بالعدد كما في المدخل
 # =========================
 if search_type == "بحث حروف الكلمة":
     keyword = st.text_input("اكتب الحروف للبحث داخل الآيات")
     if keyword:
-        keyword_clean = list(set(remove_tashkeel(keyword)))  # إزالة التكرار من المدخل
+        keyword_clean = remove_tashkeel(keyword)
 
-        def contains_all_chars_once(ayah):
+        def contains_all_chars_counted(ayah):
             ayah_clean = remove_tashkeel(ayah)
-            return all(c in ayah_clean for c in keyword_clean)
+            # نتحقق من أن كل حرف في keyword موجود على الأقل بعدد مرات ظهوره في المدخل
+            return all(ayah_clean.count(c) >= keyword_clean.count(c) for c in set(keyword_clean))
 
-        results = df[df["ayah_text"].apply(contains_all_chars_once)]
+        results = df[df["ayah_text"].apply(contains_all_chars_counted)]
 
-        # ترتيب عند القرآن كله فقط
         if selected_surah == "القرآن كله":
             results = results.sort_values(["surah_name","ayah_number"]).reset_index(drop=True)
 
@@ -153,7 +153,7 @@ if search_type == "بحث حروف الكلمة":
 
         for _, row in results.iterrows():
             surah_clean = clean_surah_name(row["surah_name"])
-            highlighted = highlight_chars_unique(row["ayah_text"], keyword)
+            highlighted = highlight_chars_as_input(row["ayah_text"], keyword)
             st.markdown(
                 f"""
                 <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px; margin-bottom:10px;">
