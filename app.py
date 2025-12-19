@@ -207,7 +207,7 @@ elif search_type == "عرض السورة كاملة":
 
     if selected_surah == "القرآن كله":
         df_display = df.sort_values(
-            ["surah_name","ayah_number"]
+            ["surah_name"]
         ).reset_index(drop=True)
 
     for _, row in df_display.iterrows():
@@ -222,3 +222,4 @@ elif search_type == "عرض السورة كاملة":
             """,
             unsafe_allow_html=True
         )
+
