@@ -43,10 +43,7 @@ def clean_surah_name(name):
 @st.cache_data
 def get_surah_files():
     files = {}
-
-    # أضف "القرآن كله" أولًا
     files[0] = {"name": "القرآن كله", "path": None}
-
     for file in os.listdir("data"):
         if file.endswith(".xlsx"):
             match = re.match(r"(\d+)", file)
@@ -56,12 +53,10 @@ def get_surah_files():
                 "name": surah_name,
                 "path": os.path.join("data", file)
             }
-
     return dict(sorted(files.items()))
 
 surah_files_dict = get_surah_files()
 surah_options = [v["name"] for v in surah_files_dict.values()]
-
 selected_surah = st.sidebar.selectbox("اختر السورة", surah_options)
 
 def get_file_path_by_name(surah_name):
@@ -83,7 +78,6 @@ def load_data(selected_surah_name):
             df_temp = pd.read_excel(v["path"])
             df_temp["surah_name"] = v["name"]
             all_rows.append(df_temp)
-
         return (
             pd.concat(all_rows, ignore_index=True)
             .sort_values(["surah_id", "ayah_number"])
@@ -115,55 +109,78 @@ st.divider()
 # =========================
 search_type = st.radio(
     "اختر نوع البحث",
-    ["بحث بكلمة", "بحث برقم الآية", "عرض السورة كاملة"],
+    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"],
     horizontal=True
 )
 st.divider()
 
 # =========================
-# تلوين الحروف
+# 🔍 دالة تظليل الحروف بدون تكرار
 # =========================
-def highlight_chars(original, keyword_clean):
-    result = ""
-    seen = set()
-    for char in original:
-        clean = remove_tashkeel(char)
-        if clean in keyword_clean and clean not in seen:
-            result += f'<span style="color:green; font-weight:bold;">{char}</span>'
-            seen.add(clean)
+def highlight_chars_unique(text, keyword):
+    keyword_clean = list(set(remove_tashkeel(keyword)))  # كل حرف مرة واحدة فقط
+    highlighted = ""
+    highlighted_chars = set()
+    
+    for char in text:
+        char_clean = remove_tashkeel(char)
+        if char_clean in keyword_clean and char_clean not in highlighted_chars:
+            highlighted += f'<span style="color:green; font-weight:bold;">{char}</span>'
+            highlighted_chars.add(char_clean)
         else:
-            result += char
-    return result
+            highlighted += char
+    return highlighted
 
 # =========================
-# 🔍 بحث بالكلمة
+# 🔍 بحث حروف الكلمة بدون ترتيب وبدون تكرار التظليل
 # =========================
-if search_type == "بحث بكلمة":
+if search_type == "بحث حروف الكلمة":
     keyword = st.text_input("اكتب الحروف للبحث داخل الآيات")
-
     if keyword:
-        keyword_clean = remove_tashkeel(keyword)
+        keyword_clean = list(set(remove_tashkeel(keyword)))  # إزالة التكرار من المدخل
 
-        results = df[df["ayah_text"].apply(
-            lambda x: all(c in remove_tashkeel(x) for c in keyword_clean)
-        )]
+        def contains_all_chars_once(ayah):
+            ayah_clean = remove_tashkeel(ayah)
+            return all(c in ayah_clean for c in keyword_clean)
+
+        results = df[df["ayah_text"].apply(contains_all_chars_once)]
 
         # ترتيب عند القرآن كله فقط
         if selected_surah == "القرآن كله":
-            results = results.sort_values(
-                ["surah_name","ayah_number"]
-            ).reset_index(drop=True)
+            results = results.sort_values(["surah_name","ayah_number"]).reset_index(drop=True)
 
         st.write(f"عدد النتائج: {len(results)}")
 
         for _, row in results.iterrows():
             surah_clean = clean_surah_name(row["surah_name"])
-
+            highlighted = highlight_chars_unique(row["ayah_text"], keyword)
             st.markdown(
                 f"""
                 <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px; margin-bottom:10px;">
-                    <b> {surah_clean} ({row['ayah_number']})</b><br>
-                    {highlight_chars(row["ayah_text"], keyword_clean)}
+                    <b>{surah_clean} ({row['ayah_number']})</b><br>
+                    {highlighted}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+# =========================
+# 🔍 بحث بكلمة
+# =========================
+elif search_type == "بحث بكلمة":
+    word = st.text_input("اكتب الكلمة للبحث")
+    if word:
+        results = df[df["ayah_text"].str.contains(word, case=False, regex=False)]
+        if selected_surah == "القرآن كله":
+            results = results.sort_values(["surah_name","ayah_number"]).reset_index(drop=True)
+        st.write(f"عدد النتائج: {len(results)}")
+        for _, row in results.iterrows():
+            surah_clean = clean_surah_name(row["surah_name"])
+            st.markdown(
+                f"""
+                <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px; margin-bottom:10px;">
+                    <b>{surah_clean} ({row['ayah_number']})</b><br>
+                    {row['ayah_text']}
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -179,18 +196,11 @@ elif search_type == "بحث برقم الآية":
         max_value=int(df["ayah_number"].max()),
         step=1
     )
-
     result = df[df["ayah_number"] == ayah_number]
-
-    # ترتيب عند القرآن كله فقط
     if selected_surah == "القرآن كله":
-        result = result.sort_values(
-            ["surah_name","ayah_number"]
-        ).reset_index(drop=True)
-
+        result = result.sort_values(["surah_name","ayah_number"]).reset_index(drop=True)
     for _, row in result.iterrows():
         surah_clean = clean_surah_name(row["surah_name"])
-
         st.markdown(
             f"""
             <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:20px; margin-bottom:10px;">
@@ -205,17 +215,11 @@ elif search_type == "بحث برقم الآية":
 # 📖 عرض السورة كاملة
 # =========================
 elif search_type == "عرض السورة كاملة":
-
     df_display = df
-
     if selected_surah == "القرآن كله":
-        df_display = df.sort_values(
-            ["surah_id","surah_name"]
-        ).reset_index(drop=True)
-
+        df_display = df.sort_values(["surah_id","surah_name"]).reset_index(drop=True)
     for _, row in df_display.iterrows():
         surah_clean = clean_surah_name(row["surah_name"])
-
         st.markdown(
             f"""
             <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px; margin-bottom:10px;">
@@ -225,8 +229,3 @@ elif search_type == "عرض السورة كاملة":
             """,
             unsafe_allow_html=True
         )
-
-
-
-
-
