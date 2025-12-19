@@ -217,12 +217,13 @@ elif search_type == "بحث برقم الآية":
 # =========================
 elif search_type == "عرض السورة كاملة":
     for _, row in df.iterrows():
-        surah_name_clean = row["surah_name"].split("-")[1]  # اسم السورة فقط
+        surah_name_clean = row["surah_name"].split("-")[0]  # اسم السورة فقط
 
         st.markdown(f"**{surah_name_clean} ({row['ayah_number']})**")
         st.markdown(
             f'<div style="font-size:18px; line-height:2;">{row["ayah_text"]}</div>',
             unsafe_allow_html=True
         )
+
 
 
