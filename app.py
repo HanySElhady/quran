@@ -30,6 +30,14 @@ def remove_tashkeel(text):
     return tashkeel.sub('', str(text))
 
 # =========================
+# تنظيف اسم السورة (حل جذري)
+# =========================
+def clean_surah_name(name):
+    name = re.sub(r'^\d+\s*[-_]*\s*', '', name)
+    name = re.sub(r'\s*[-_]*\s*\d+$', '', name)
+    return name.strip()
+
+# =========================
 # قراءة ملفات السور
 # =========================
 @st.cache_data
@@ -46,15 +54,8 @@ def get_surah_files():
     return dict(sorted(files.items()))
 
 surah_files_dict = get_surah_files()
-if not surah_files_dict:
-    st.error("لا يوجد ملفات سور داخل مجلد data")
-    st.stop()
-
 surah_options = [v["name"] for v in surah_files_dict.values()]
 
-# =========================
-# اختيار السورة
-# =========================
 selected_surah = st.sidebar.selectbox("اختر السورة", surah_options)
 
 def get_file_path_by_name(surah_name):
@@ -77,15 +78,14 @@ def load_data(selected_surah_name):
             df_temp["surah_name"] = v["name"]
             all_rows.append(df_temp)
 
-        if all_rows:
-            df_all = pd.concat(all_rows, ignore_index=True)
-            return df_all.sort_values(["surah_id", "ayah_number"]).reset_index(drop=True)
-
-        return pd.DataFrame()
+        return (
+            pd.concat(all_rows, ignore_index=True)
+            .sort_values(["surah_id", "ayah_number"])
+            .reset_index(drop=True)
+        )
 
     else:
-        file_path = get_file_path_by_name(selected_surah_name)
-        return pd.read_excel(file_path)
+        return pd.read_excel(get_file_path_by_name(selected_surah_name))
 
 df = load_data(selected_surah)
 
@@ -96,7 +96,9 @@ st.markdown(
     f"""
     <div style="background-color:#f0f8ff; padding:15px; border-radius:10px;">
         <h1 style="color:#003366; text-align:center;">📖 البحث في القرآن الكريم</h1>
-        <h3 style="color:#006699; text-align:center;">{selected_surah}</h3>
+        <h3 style="color:#006699; text-align:center;">
+             {clean_surah_name(selected_surah)}
+        </h3>
     </div>
     """,
     unsafe_allow_html=True
@@ -129,48 +131,30 @@ def highlight_chars(original, keyword_clean):
     return result
 
 # =========================
-# 🔍 بحث بالكلمة
+# 🔍 بحث بالكلمة (سورة أو قرآن كله)
 # =========================
 if search_type == "بحث بكلمة":
     keyword = st.text_input("اكتب الحروف للبحث داخل الآيات")
+
     if keyword:
         keyword_clean = remove_tashkeel(keyword)
-
         results = df[df["ayah_text"].apply(
             lambda x: all(c in remove_tashkeel(x) for c in keyword_clean)
         )]
 
         st.write(f"عدد النتائج: {len(results)}")
 
-        export_rows = []
-
         for _, row in results.iterrows():
-            surah_clean = row["surah_name"].split("-")[0]
-            ayah_html = highlight_chars(row["ayah_text"], keyword_clean)
+            surah_clean = clean_surah_name(row["surah_name"])
 
             st.markdown(
                 f"""
                 <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px;">
-                    <b>{surah_clean} ({row['ayah_number']})</b><br>
-                    {ayah_html}
+                    <b> {surah_clean} ({row['ayah_number']})</b><br>
+                    {highlight_chars(row["ayah_text"], keyword_clean)}
                 </div>
                 """,
                 unsafe_allow_html=True
-            )
-
-            export_rows.append({
-                "surah_name": surah_clean,
-                "ayah_number": row["ayah_number"],
-                "ayah_text": row["ayah_text"]
-            })
-
-        if export_rows:
-            buffer = BytesIO()
-            pd.DataFrame(export_rows).to_excel(buffer, index=False)
-            st.download_button(
-                "تصدير النتائج Excel",
-                buffer.getvalue(),
-                f"{selected_surah}_search_results.xlsx"
             )
 
 # =========================
@@ -187,12 +171,12 @@ elif search_type == "بحث برقم الآية":
     result = df[df["ayah_number"] == ayah_number]
     if not result.empty:
         row = result.iloc[0]
-        surah_clean = row["surah_name"].split("-")[0]
+        surah_clean = clean_surah_name(row["surah_name"])
 
         st.markdown(
             f"""
             <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:20px;">
-                <b>{surah_clean} ({ayah_number})</b><br>
+                <b> {surah_clean} ({ayah_number})</b><br>
                 {row["ayah_text"]}
             </div>
             """,
@@ -204,12 +188,13 @@ elif search_type == "بحث برقم الآية":
 # =========================
 elif search_type == "عرض السورة كاملة":
     for _, row in df.iterrows():
-        surah_clean = row["surah_name"].split("-")[0]
+        surah_clean = clean_surah_name(row["surah_name"])
 
         st.markdown(
             f"""
-            <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px; margin-bottom:12px;">
-                <b>({row['ayah_number']})</b> {row["ayah_text"]}
+            <div style="direction:rtl; unicode-bidi:isolate; text-align:right; font-size:18px; margin-bottom:10px;">
+                <b> {surah_clean} ({row['ayah_number']})</b><br>
+                {row["ayah_text"]}
             </div>
             """,
             unsafe_allow_html=True
