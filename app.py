@@ -43,6 +43,10 @@ def clean_surah_name(name):
 @st.cache_data
 def get_surah_files():
     files = {}
+
+    # أضف "القرآن كله" أولًا
+    files[0] = {"name": "القرآن كله", "path": None}
+
     for file in os.listdir("data"):
         if file.endswith(".xlsx"):
             match = re.match(r"(\d+)", file)
@@ -53,7 +57,6 @@ def get_surah_files():
                 "path": os.path.join("data", file)
             }
 
-    files[1000] = {"name": "القرآن كله", "path": None}
     return dict(sorted(files.items()))
 
 surah_files_dict = get_surah_files()
@@ -222,6 +225,7 @@ elif search_type == "عرض السورة كاملة":
             """,
             unsafe_allow_html=True
         )
+
 
 
 
