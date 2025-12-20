@@ -89,6 +89,81 @@ def load_data(selected_surah_name):
 df = load_data(selected_surah)
 
 # =========================
+# 📊 إحصاءات السور والآيات
+# =========================
+st.markdown("## 📊 إحصاءات")
+
+if selected_surah == "القرآن كله":
+    # إحصاء كل سورة
+    stats_df = (
+        df.groupby("surah_name")["ayah_number"]
+        .count()
+        .reset_index()
+        .rename(columns={
+            "surah_name": "اسم السورة",
+            "ayah_number": "عدد الآيات"
+        })
+    )
+
+    # تنظيف أسماء السور
+    stats_df["اسم السورة"] = stats_df["اسم السورة"].apply(clean_surah_name)
+
+    # ترتيب حسب ترتيب المصحف
+    if "surah_id" in df.columns:
+        surah_order = (
+            df[["surah_name", "surah_id"]]
+            .drop_duplicates()
+            .copy()
+        )
+        surah_order["surah_name"] = surah_order["surah_name"].apply(clean_surah_name)
+        stats_df = stats_df.merge(
+            surah_order,
+            left_on="اسم السورة",
+            right_on="surah_name",
+            how="left"
+        ).sort_values("surah_id")
+        stats_df = stats_df.drop(columns=["surah_name", "surah_id"])
+
+    total_ayahs = stats_df["عدد الآيات"].sum()
+
+    # عرض إجمالي المصحف
+    st.markdown(
+        f"""
+        <div style="background-color:black; padding:15px; border-radius:10px; text-align:center;">
+            <h3>📖 إجمالي عدد آيات القرآن الكريم</h3>
+            <h1 style="color:#003366;">{total_ayahs}</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.divider()
+    st.markdown("### 📘 عدد الآيات في كل سورة")
+    st.dataframe(
+        stats_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+else:
+    # إحصاء سورة واحدة
+    surah_clean = clean_surah_name(selected_surah)
+    ayah_count = len(df)
+
+    st.markdown(
+        f"""
+        <div style="background-color:#e8f4ff; padding:20px; border-radius:10px; text-align:center;">
+            <h3>📘 سورة {surah_clean}</h3>
+            <p style="font-size:18px;">عدد الآيات</p>
+            <h1 style="color:#003366;">{ayah_count}</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+st.divider()
+
+# =========================
 # عنوان الصفحة
 # =========================
 st.markdown(
@@ -109,7 +184,7 @@ st.divider()
 # =========================
 search_type = st.radio(
     "اختر نوع البحث",
-    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"],
+    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة", "بحث بكلمة"],
     horizontal=True
 )
 st.divider()
@@ -229,4 +304,3 @@ elif search_type == "عرض السورة كاملة":
             """,
             unsafe_allow_html=True
         )
-
