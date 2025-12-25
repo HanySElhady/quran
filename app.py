@@ -212,7 +212,7 @@ st.divider()
 # =========================
 search_type = st.radio(
     "اختر نوع البحث",
-    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة", "بحث بكلمة"],
+    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"]
     horizontal=True
 )
 st.divider()
@@ -258,21 +258,6 @@ if search_type == "بحث حروف الكلمة":
                 unsafe_allow_html=True
             )
 
-# =========================
-# 🔍 بحث بكلمة
-# =========================
-elif search_type == "بحث بكلمة":
-    word = st.text_input("اكتب الكلمة للبحث")
-    if word:
-        results = df[df["ayah_text"].str.contains(word, case=False, regex=False)]
-        if selected_surah == "القرآن كله":
-            results = results.sort_values(["surah_id","ayah_number"])
-        st.write(f"عدد النتائج: {len(results)}")
-        for _, row in results.iterrows():
-            st.markdown(
-                f"<b>{row['surah_name']} ({row['ayah_number']})</b><br>{row['ayah_text']}<br><br>",
-                unsafe_allow_html=True
-            )
 
 # =========================
 # 🔢 بحث برقم الآية
@@ -307,4 +292,5 @@ try:
     st.image(footer_img, use_container_width=False)
 except:
     st.warning("⚠ لم يتم العثور على صورة footer.png داخل مجلد assets")
+
 
