@@ -216,7 +216,6 @@ search_type = st.radio(
     horizontal=True
 )
 st.divider()
-
 # =========================
 # تظليل مطابق للحروف
 # =========================
@@ -257,8 +256,6 @@ if search_type == "بحث حروف الكلمة":
                 f"<b>{row['surah_name']} ({row['ayah_number']})</b><br>{highlight_chars_as_input(row['ayah_text'], keyword)}<br><br>",
                 unsafe_allow_html=True
             )
-
-
 # =========================
 # 🔢 بحث برقم الآية
 # =========================
@@ -292,5 +289,6 @@ try:
     st.image(footer_img, use_container_width=False)
 except:
     st.warning("⚠ لم يتم العثور على صورة footer.png داخل مجلد assets")
+
 
 
