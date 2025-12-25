@@ -212,7 +212,7 @@ st.divider()
 # =========================
 search_type = st.radio(
     "اختر نوع البحث",
-    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"]
+    ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"],
     horizontal=True
 )
 st.divider()
@@ -289,6 +289,7 @@ try:
     st.image(footer_img, use_container_width=False)
 except:
     st.warning("⚠ لم يتم العثور على صورة footer.png داخل مجلد assets")
+
 
 
 
