@@ -300,3 +300,11 @@ elif search_type == "عرض السورة كاملة":
             f"<b>{row['surah_name']} ({row['ayah_number']})</b><br>{row['ayah_text']}<br><br>",
             unsafe_allow_html=True
         )
+
+st.markdown("---")
+try:
+    footer_img = Image.open("assets/footer.png")
+    st.image(footer_img, use_container_width=False)
+except:
+    st.warning("⚠ لم يتم العثور على صورة footer.png داخل مجلد assets")
+
