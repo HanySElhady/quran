@@ -14,6 +14,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# جعل اتجاه النص عربي (يمين → يسار) في كل نتائج البحث
+st.markdown("""
+<style>
+* {
+    direction: rtl;
+    text-align: right !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =========================
 # صورة العنوان
 # =========================
