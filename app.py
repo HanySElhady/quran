@@ -12,18 +12,7 @@ from reportlab.lib.pagesizes import A4
 # =========================
 st.set_page_config(page_title="البحث في القرآن الكريم", page_icon="📖", layout="wide")
 
-st.markdown("""
-<style>
-* {
-    direction: rtl;
-    text-align: right !important;
-}
-.copy-icon:hover{
-    color:green;
-    cursor:pointer;
-}
-</style>
-""", unsafe_allow_html=True)
+
 
 # =========================
 # صورة العنوان
@@ -220,3 +209,4 @@ if os.path.exists("assets/footer.png"):
     st.image("assets/footer.png")
 else:
     st.warning("لا يوجد footer.png داخل assets")
+
