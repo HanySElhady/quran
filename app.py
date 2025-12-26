@@ -110,7 +110,9 @@ if selected_surah == "القرآن كله":
     stats_df = df.groupby(["surah_id", "surah_name"])["ayah_number"].nunique().reset_index().rename(columns={"surah_name":"اسم السورة","ayah_number":"عدد الآيات"})
     stats_df["اسم السورة"] = stats_df["اسم السورة"].apply(clean_surah_name)
     stats_df = stats_df.merge(surah_order, on="surah_id", how="left").sort_values("surah_id")
-    stats_df = stats_df[["surah_id", "اسم السورة", "عدد الآيات"]].reset_index(drop=True)
+    # إعادة تسمية العمود
+    stats_df = stats_df[["surah_id", "اسم السورة", "عدد الآيات"]].rename(columns={"surah_id": "رقم السورة"}).reset_index(drop=True)
+    
     total_ayahs = stats_df["عدد الآيات"].sum()
     st.markdown(f"""
         <div style="background-color:black; padding:15px; border-radius:10px; text-align:center;">
@@ -119,18 +121,45 @@ if selected_surah == "القرآن كله":
         </div>""", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📘 عدد الآيات في كل سورة بترتيب المصحف")
-    st.dataframe(stats_df, use_container_width=True, hide_index=True)
-else:
-    surah_clean = clean_surah_name(selected_surah)
-    ayah_count = df["ayah_number"].nunique()
-    st.markdown(f"""
-        <div style="background-color:#e8f4ff; padding:20px; border-radius:10px; text-align:center;">
-            <h3>📘 سورة {surah_clean}</h3>
-            <p style="font-size:18px;">عدد الآيات</p>
-            <h1 style="color:#003366;">{ayah_count}</h1>
-        </div>""", unsafe_allow_html=True)
+    
+    # ===============
+    # جدول إحصاءات 
+    # ===============
+    def render_gold_table_scroll(df, max_rows_visible=15):
+        # نحسب ارتفاع الحاوية تقريبا: 40px لكل صف + 45px للرأس
+        container_height = max_rows_visible * 40 + 45
+        return f"""
+        <div style="overflow-x:auto; overflow-y:auto; max-height:{container_height}px; border:3px solid #CFA500; border-radius:10px; padding:5px;">
+            {df.to_html(index=False, classes="gold-table", escape=False)}
+        </div>
+        """
 
-st.divider()
+    st.markdown("""
+    <style>
+    .gold-table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    .gold-table th, .gold-table td {
+        border: 1px solid #CFA500;
+        padding: 8px 12px;
+        text-align: center;
+    }
+    .gold-table th {
+        background-color: #fff7e6;
+        color: #CFA500;
+        font-size: 20px;
+    }
+    .gold-table tbody tr:hover {
+        background-color: #fff3cc;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # عرض الجدول مع التمرير
+    st.markdown(render_gold_table_scroll(stats_df, max_rows_visible=15), unsafe_allow_html=True)
 
 # =========================
 # عنوان الصفحة
@@ -169,6 +198,7 @@ def highlight_chars_as_input(text, keyword):
             # باقي النص → بولد أقوى
             highlighted += f'<span style="font-weight:900;">{char}</span>'
     return highlighted
+
 # =========================
 # 🔍 بحث حروف الكلمة
 # =========================
@@ -197,7 +227,6 @@ elif search_type == "بحث برقم الآية":
     ayah_number = st.number_input("أدخل رقم الآية", min_value=1, max_value=int(df["ayah_number"].max()), step=1)
     result = df[df["ayah_number"] == ayah_number]
     for _, row in result.iterrows():
-        # تظليل بالذهبي فقط إذا لا يوجد keyword
         ayah_html = highlight_tashkeel(highlight_chars_as_input(row['ayah_text'], keyword)) if 'keyword' in locals() and keyword else highlight_tashkeel(row['ayah_text'])
         st.markdown(
             f"<b>{row['surah_name']} ({row['ayah_number']})</b><br>"
