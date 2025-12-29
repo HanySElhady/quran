@@ -270,7 +270,6 @@ elif search_type == "عرض السورة كاملة":
 # ⭐ البحث الجديد: الحروف الأصلية ⭐
 # =========================
 elif search_type == "بحث الحروف الأصلية":
-    st.markdown("### 🔠 استخراج الحروف الأصلية الفريدة بدون تكرار وتوحيد الهمزات")
     for _, row in df.iterrows():
         letters = extract_original_letters(row['ayah_text'])
         st.markdown(f"""
@@ -283,3 +282,4 @@ try:
     st.image(footer_img, use_container_width=False)
 except:
     st.warning("⚠ لم يتم العثور على صورة footer.png داخل مجلد assets")
+
