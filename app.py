@@ -37,6 +37,26 @@ def highlight_tashkeel(text):
     return tashkeel_marks.sub(r'<span style="color:#CFA500; font-weight:bold;">\1</span>', text)
 
 # =========================
+# توحيد الهمزات للبحث الجديد
+# =========================
+def normalize_hamza(text):
+    return re.sub(r'[أإآؤئ]', 'ء', text)
+
+# =========================
+# استخراج الحروف الأصلية بدون تكرار
+# =========================
+def extract_original_letters(ayah):
+    txt = remove_tashkeel(ayah)
+    txt = normalize_hamza(txt)
+    txt = re.sub(r'[^ءابتثجحخدذرزسشصضطظعغفقكلمنهوي]', '', txt)
+    txt = txt.replace(" ", "")
+    letters = []
+    for c in txt:
+        if c not in letters:
+            letters.append(c)
+    return "".join(letters)
+
+# =========================
 # تنظيف اسم السورة النهائي
 # =========================
 def clean_surah_name(name):
@@ -107,12 +127,14 @@ st.markdown("## 📊 إحصاءات")
 if selected_surah == "القرآن كله":
     surah_order = df[["surah_id", "surah_name"]].drop_duplicates().sort_values("surah_id").copy()
     surah_order["surah_name"] = surah_order["surah_name"].apply(clean_surah_name)
-    stats_df = df.groupby(["surah_id", "surah_name"])["ayah_number"].nunique().reset_index().rename(columns={"surah_name":"اسم السورة","ayah_number":"عدد الآيات"})
-    stats_df["اسم السورة"] = stats_df["اسم السورة"].apply(clean_surah_name)
-    stats_df = stats_df.merge(surah_order, on="surah_id", how="left").sort_values("surah_id")
-    # إعادة تسمية العمود
-    stats_df = stats_df[["surah_id", "اسم السورة", "عدد الآيات"]].rename(columns={"surah_id": "رقم السورة"}).reset_index(drop=True)
-    
+    stats_df = (
+    df.groupby(["surah_id", "surah_name"])["ayah_number"]
+    .max()   #<<<< بدل nunique
+    .reset_index()
+    .rename(columns={"surah_id":"رقم السورة","surah_name":"اسم السورة","ayah_number":"عدد الآيات"})
+)
+
+    stats_df = stats_df if 'stats_df' in locals() else None
     total_ayahs = stats_df["عدد الآيات"].sum()
     st.markdown(f"""
         <div style="background-color:black; padding:15px; border-radius:10px; text-align:center;">
@@ -160,7 +182,6 @@ if selected_surah == "القرآن كله":
 
     # عرض الجدول مع التمرير
     st.markdown(render_gold_table_scroll(stats_df, max_rows_visible=15), unsafe_allow_html=True)
-
 # =========================
 # عنوان الصفحة
 # =========================
@@ -174,7 +195,7 @@ st.divider()
 # =========================
 # نوع البحث
 # =========================
-search_type = st.radio("اختر نوع البحث", ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة"], horizontal=True)
+search_type = st.radio("اختر نوع البحث", ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة","بحث الحروف الأصلية"], horizontal=True)
 st.divider()
 
 # =========================
@@ -245,7 +266,18 @@ elif search_type == "عرض السورة كاملة":
             unsafe_allow_html=True
         )
 
-st.markdown("---")
+# =========================
+# ⭐ البحث الجديد: الحروف الأصلية ⭐
+# =========================
+elif search_type == "بحث الحروف الأصلية":
+    st.markdown("### 🔠 استخراج الحروف الأصلية الفريدة بدون تكرار وتوحيد الهمزات")
+    for _, row in df.iterrows():
+        letters = extract_original_letters(row['ayah_text'])
+        st.markdown(f"""
+        <b>{row['surah_name']} ({row['ayah_number']})</b><br>
+        <span style="font-size:22px; color:green; font-weight:bold;">{letters}</span><br><hr>
+        """, unsafe_allow_html=True)
+
 try:
     footer_img = Image.open("assets/footer.png")
     st.image(footer_img, use_container_width=False)
