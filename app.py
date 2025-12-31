@@ -337,6 +337,7 @@ elif search_type == "بحث الحروف الأصلية":
 
     st.markdown(f"### الحروف المعتمدة في البحث: **{user_unique}**")
     st.markdown("---")
+
     results = []
     for _, row in df.iterrows():
         ayah_letters = extract_original_letters(row["ayah_text"])
@@ -348,13 +349,16 @@ elif search_type == "بحث الحروف الأصلية":
     # -------------------------
     # عرض النتائج بدون تكرار
     # -------------------------
+
     for r in results:
         lets = extract_original_letters(r['ayah_text'])
         st.markdown(f"""
             <b>{r['surah_name']} ({r['ayah_number']})</b><br>
             <span style="font-size:22px; color:green; font-weight:bold;">{lets}</span><br>
+            <i>{r['ayah_text']}</i>
             <hr>
         """, unsafe_allow_html=True)
+
 
 try:
     footer_img = Image.open("assets/footer.png")
