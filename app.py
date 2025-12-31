@@ -35,6 +35,24 @@ def remove_tashkeel(text):
 def highlight_tashkeel(text):
     tashkeel_marks = re.compile(r'([\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED])')
     return tashkeel_marks.sub(r'<span style="color:#CFA500; font-weight:bold;">\1</span>', text)
+# =========================
+# توحيد الهمزات وتحويلها إلى "ا"
+# =========================
+def normalize_hamza_to_alif(text):
+    return re.sub(r"[أإآؤئء]", "ا", text)
+
+# =========================
+# استخراج الحروف الأصلية
+# =========================
+def extract_original_letters(ayah):
+    txt = remove_tashkeel(ayah)
+    txt = normalize_hamza_to_alif(txt)
+    txt = re.sub(r'[^ا-ي]', '', txt)  # حذف كل شيء غير الحروف العربية
+    letters = []
+    for c in txt:
+        if c not in letters:
+            letters.append(c)
+    return "".join(letters)
 
 # =========================
 # توحيد الهمزات للبحث الجديد
@@ -270,16 +288,34 @@ elif search_type == "عرض السورة كاملة":
 # ⭐ البحث الجديد: الحروف الأصلية ⭐
 # =========================
 elif search_type == "بحث الحروف الأصلية":
-    for _, row in df.iterrows():
-        letters = extract_original_letters(row['ayah_text'])
-        st.markdown(f"""
-        <b>{row['surah_name']} ({row['ayah_number']})</b><br>
-        <span style="font-size:22px; color:green; font-weight:bold;">{letters}</span><br><hr>
-        """, unsafe_allow_html=True)
 
-try:
-    footer_img = Image.open("assets/footer.png")
-    st.image(footer_img, use_container_width=False)
-except:
-    st.warning("⚠ لم يتم العثور على صورة footer.png داخل مجلد assets")
+    st.markdown("### 🔠 البحث بالحروف الأصلية (بدون تكرار – بدون همزات – بدون زائد)")
+    search_letters = st.text_input("اكتب الحروف الأصلية للبحث", placeholder="مثل: الم  | كهعص  | يس  | طسم")
 
+    if search_letters:
+        # تنظيف مدخل المستخدم
+        user_letters = normalize_hamza_to_alif(remove_tashkeel(search_letters))
+        user_letters = re.sub(r'[^ا-ي]', '', user_letters)  # حذف كل شيء غير الحروف
+        user_unique = "".join(sorted(set(user_letters)))    # ترتيب وتفريد
+
+        st.write(f"الحروف المعتمدة للبحث: **{user_unique}**")
+
+        results = []
+        for _, row in df.iterrows():
+            ayah_letters = extract_original_letters(row["ayah_text"])
+            ayah_unique = "".join(sorted(set(ayah_letters)))  # ترتيب وتفريد أيضاً
+
+            # شرط التطابق: نفس الحروف ونفس العدد بلا زيادة
+            if ayah_unique == user_unique:
+                results.append(row)
+
+        st.markdown(f"### 📌 عدد النتائج المطابقة تماماً: {len(results)}")
+
+        for r in results:
+            lets = extract_original_letters(r['ayah_text'])
+            st.markdown(f"""
+            <b>{r['surah_name']} ({r['ayah_number']})</b><br>
+            <span style="font-size:22px; color:green; font-weight:bold;">{lets}</span><br>
+            <i>{r['ayah_text']}</i>
+            <hr>
+            """, unsafe_allow_html=True)
