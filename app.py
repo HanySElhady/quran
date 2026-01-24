@@ -36,6 +36,11 @@ def highlight_tashkeel(text):
     tashkeel_marks = re.compile(r'([\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED])')
     return tashkeel_marks.sub(r'<span style="color:#CFA500; font-weight:bold;">\1</span>', text)
 
+def normalize_for_word_search(text):
+    text = remove_tashkeel(text)
+    text = normalize_hamza_to_alif(text)
+    return text
+
 # =========================
 # استخراج الحروف الأصلية
 # =========================
@@ -233,7 +238,7 @@ st.divider()
 # =========================
 # نوع البحث
 # =========================
-search_type = st.radio("اختر نوع البحث", ["بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة","بحث الحروف الأصلية"], horizontal=True)
+search_type = st.radio("اختر نوع البحث", [ "بحث بالكلمة","بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة","بحث الحروف الأصلية"], horizontal=True)
 st.divider()
 
 # =========================
@@ -257,6 +262,47 @@ def highlight_chars_as_input(text, keyword):
             # باقي النص → بولد أقوى
             highlighted += f'<span style="font-weight:900;">{char}</span>'
     return highlighted
+# =========================
+# 🔎 بحث بالكلمة (نصي)
+# =========================
+if search_type == "بحث بالكلمة":
+
+    keyword = st.text_input(
+        "اكتب الكلمة للبحث",
+        placeholder="مثال: الله | الرحمن | الكتاب | موسى"
+    )
+
+    if keyword:
+        keyword_clean = normalize_for_word_search(keyword)
+
+        def contains_word(ayah):
+            ayah_clean = normalize_for_word_search(ayah)
+            return keyword_clean in ayah_clean
+
+        results = df[df["ayah_text"].apply(contains_word)]
+
+        if selected_surah == "القرآن كله":
+            results = results.sort_values(
+                ["surah_id", "ayah_number"]
+            ).reset_index(drop=True)
+
+        st.markdown(f"### 📌 عدد النتائج: {len(results)}")
+        st.divider()
+
+        for _, row in results.iterrows():
+            ayah_html = highlight_tashkeel(
+                highlight_chars_as_input(row["ayah_text"], keyword)
+            )
+
+            st.markdown(
+                f"""
+                <b>{row['surah_name']} ({row['ayah_number']})</b><br>
+                {ayah_html}
+                <hr>
+                """,
+                unsafe_allow_html=True
+            )
+
 
 # =========================
 # 🔍 بحث حروف الكلمة
