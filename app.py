@@ -24,80 +24,59 @@ st.image(header_img, use_container_width=True)
 # إزالة التشكيل
 # =========================
 def remove_tashkeel(text):
-    tashkeel = re.compile(
-        r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]'
-    )
-    return tashkeel.sub('', str(text))
+    return re.sub(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]', '', str(text))
 
 # =========================
-# تلوين التشكيل باللون الذهبي Bold
+# تلوين التشكيل
 # =========================
 def highlight_tashkeel(text):
-    tashkeel_marks = re.compile(r'([\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED])')
-    return tashkeel_marks.sub(r'<span style="color:#CFA500; font-weight:bold;">\1</span>', text)
+    return re.sub(
+        r'([\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED])',
+        r'<span style="color:#CFA500; font-weight:bold;">\1</span>',
+        text
+    )
 
+# =========================
+# توحيد الهمزات → ألف
+# =========================
+def normalize_hamza_to_alif(text):
+    return re.sub(r"[أإآؤئء]", "ا", text)
+
+# =========================
+# 🔥 البحث الجديد (بدون ع/غ)
+# =========================
+def normalize_letters_for_new_search(text):
+    text = remove_tashkeel(text)
+
+    text = re.sub(r"[أإآء]", "ا", text)
+    text = re.sub(r"[يى]", "ي", text)
+    text = re.sub(r"[هة]", "ه", text)
+    text = re.sub(r"[ؤ]", "و", text)
+
+    text = re.sub(r'[^ا-ي]', '', text)
+    return text
+
+# =========================
+# استخراج الحروف الأصلية (بدون تكرار)
+# =========================
+def extract_original_letters(ayah):
+    txt = remove_tashkeel(ayah)
+    txt = re.sub(r'[^ءابتثجحخدذرزسشصضطظعغفقكلمنهوي]', '', txt)
+
+    letters = []
+    for c in txt:
+        if c not in letters:
+            letters.append(c)
+
+    return "".join(letters)
+
+# =========================
+# تجهيز نص للبحث بالكلمة
+# =========================
 def normalize_for_word_search(text):
     text = remove_tashkeel(text)
     text = normalize_hamza_to_alif(text)
     return text
-
-# =========================
-# استخراج الحروف الأصلية
-# =========================
-def extract_original_letters(ayah):
-    txt = remove_tashkeel(ayah)
-    txt = normalize_hamza_to_alif(txt)
-    txt = re.sub(r'[^ا-ي]', '', txt)  # حذف كل شيء غير الحروف العربية
-    letters = []
-    for c in txt:
-        if c not in letters:
-            letters.append(c)
-    return "".join(letters)
-
-# =========================
-# توحيد الهمزات للبحث الجديد
-# =========================
-def normalize_hamza(text):
-    return re.sub(r'[أإآؤئ]', 'ء', text)
-
-# =========================
-# استخراج الحروف الأصلية بدون تكرار
-# =========================
-def extract_original_letters(ayah):
-    txt = remove_tashkeel(ayah)
-    txt = normalize_hamza(txt)
-    txt = re.sub(r'[^ءابتثجحخدذرزسشصضطظعغفقكلمنهوي]', '', txt)
-    txt = txt.replace(" ", "")
-    letters = []
-    for c in txt:
-        if c not in letters:
-            letters.append(c)
-    return "".join(letters)
-
-# =========================
-# توحيد الهمزات وتحويلها إلى "ا"
-# =========================
-def normalize_hamza_to_alif(text):
-    return re.sub(r"[أإآؤئء]", "ا", text)
-# =========================
-# توحيد الهمزات للبحث الجديد
-# =========================
-def normalize_hamza(text):
-    return re.sub(r'[أإآؤئ]', 'ء', text)
-
-# =========================
-# استخراج الحروف الأصلية بدون تكرار
-# =========================
-def extract_original_letters(ayah):
-    txt = remove_tashkeel(ayah)
-    txt = normalize_hamza(txt)
-    txt = re.sub(r'[^ءابتثجحخدذرزسشصضطظعغفقكلمنهوي]', '', txt)
-    txt = txt.replace(" ", "")
-    letters = []
-    for c in txt:
-        if c not in letters:
-            letters.append(c)
-    return "".join(letters)
 
 # =========================
 # تنظيف اسم السورة النهائي
@@ -238,7 +217,7 @@ st.divider()
 # =========================
 # نوع البحث
 # =========================
-search_type = st.radio("اختر نوع البحث", [ "بحث بالكلمة","بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة","بحث الحروف الأصلية"], horizontal=True)
+search_type = st.radio("اختر نوع البحث", [ "بحث الحروف الشاملة","بحث بالكلمة","بحث برقم الآية", "عرض السورة كاملة", "بحث حروف الكلمة","بحث الحروف الأصلية"], horizontal=True)
 st.divider()
 
 # =========================
@@ -349,10 +328,43 @@ elif search_type == "عرض السورة كاملة":
             f"{highlight_tashkeel(row['ayah_text'])}<br><br>",
             unsafe_allow_html=True
         )
+# =========================
+# 🔥 البحث الجديد بالحروف
+# =========================
+elif search_type == "بحث جديد":
 
-# =========================
-# ⭐ البحث الجديد: الحروف الأصلية ⭐
-# =========================
+    st.markdown("### 🔍 بحث بالحروف (ذكي)")
+
+    search_input = st.text_input(
+        "اكتب الحروف",
+        placeholder="مثال: الم | كهعص | يس"
+    )
+
+    if search_input:
+
+        user = normalize_letters_for_new_search(search_input)
+        user_unique = "".join(sorted(set(user)))
+
+        st.markdown(f"### الحروف بعد المعالجة: **{user_unique}**")
+        st.divider()
+
+        results = []
+
+        for _, row in df.iterrows():
+            ayah = normalize_letters_for_new_search(row["ayah_text"])
+            ayah_unique = "".join(sorted(set(ayah)))
+
+            if ayah_unique == user_unique:
+                results.append(row)
+
+        st.markdown(f"### 📌 عدد النتائج: {len(results)}")
+
+        for r in results:
+            st.markdown(f"""
+            <b>{r['surah_name']} ({r['ayah_number']})</b><br>
+            {highlight_tashkeel(r['ayah_text'])}
+            <hr>
+            """, unsafe_allow_html=True)
 # =========================
 # ⭐ البحث بالحروف الأصلية ⭐
 # =========================
