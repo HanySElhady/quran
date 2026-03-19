@@ -329,42 +329,47 @@ elif search_type == "عرض السورة كاملة":
             unsafe_allow_html=True
         )
 # =========================
-# 🔥 البحث الجديد بالحروف
+# 🔍 البحث الجديد بالحروف
 # =========================
 elif search_type == "بحث جديد":
 
-    st.markdown("### 🔍 بحث بالحروف (ذكي)")
+    st.markdown("### 🔍 البحث الجديد بالحروف")
 
     search_input = st.text_input(
-        "اكتب الحروف",
+        "اكتب الكلمة أو الحروف المراد البحث عنها",
         placeholder="مثال: الم | كهعص | يس"
     )
 
-    if search_input:
+    # لو المستخدم لم يكتب شيء → لا تعرض نتائج
+    if not search_input:
+        st.info("اكتب الحروف أو الكلمة لبدء البحث")
+        st.stop()
 
-        user = normalize_letters_for_new_search(search_input)
-        user_unique = "".join(sorted(set(user)))
+    # معالجة النص المدخل
+    user_text = normalize_letters_for_new_search(search_input)
+    user_unique = "".join(sorted(set(user_text)))
 
-        st.markdown(f"### الحروف بعد المعالجة: **{user_unique}**")
-        st.divider()
+    st.markdown(f"### الحروف المعتمدة في البحث: **{user_unique}**")
+    st.divider()
 
-        results = []
+    results = []
 
-        for _, row in df.iterrows():
-            ayah = normalize_letters_for_new_search(row["ayah_text"])
-            ayah_unique = "".join(sorted(set(ayah)))
+    for _, row in df.iterrows():
+        ayah_text = normalize_letters_for_new_search(row["ayah_text"])
+        ayah_unique = "".join(sorted(set(ayah_text)))
 
-            if ayah_unique == user_unique:
-                results.append(row)
+        if ayah_unique == user_unique:
+            results.append(row)
 
-        st.markdown(f"### 📌 عدد النتائج: {len(results)}")
+    st.markdown(f"### 📌 عدد النتائج: {len(results)}")
+    st.divider()
 
-        for r in results:
-            st.markdown(f"""
-            <b>{r['surah_name']} ({r['ayah_number']})</b><br>
-            {highlight_tashkeel(r['ayah_text'])}
-            <hr>
-            """, unsafe_allow_html=True)
+    for r in results:
+        st.markdown(f"""
+        <b>{r['surah_name']} ({r['ayah_number']})</b><br>
+        {highlight_tashkeel(r['ayah_text'])}
+        <hr>
+        """, unsafe_allow_html=True)
 # =========================
 # ⭐ البحث بالحروف الأصلية ⭐
 # =========================
