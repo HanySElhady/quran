@@ -247,8 +247,42 @@ elif search_type == "بحث بالحروف شامل":
         show_results(res, k, "normalized")
 
 elif search_type == "بحث الحروف الأصلية":
-    for _, r in df.iterrows():
-        st.markdown(f"{extract_original_letters(r['ayah_text'])}")
+
+    st.markdown("### 🔠 البحث بالحروف الأصلية")
+
+    user_input = st.text_input(
+        "اكتب آية أو كلمة لاستخراج الحروف الأصلية ثم البحث بها",
+        placeholder="مثال: الحمد لله رب العالمين"
+    )
+
+    if user_input:
+
+        # استخراج الحروف الأصلية من الإدخال
+        extracted = extract_original_letters(user_input)
+
+        st.markdown(f"### الحروف الأصلية المستخرجة: **{extracted}**")
+        st.divider()
+
+        # البحث في القرآن
+        def match_original(ayah):
+            ayah_letters = extract_original_letters(ayah)
+            return all(ayah_letters.count(c) >= extracted.count(c) for c in set(extracted))
+
+        results = df[df["ayah_text"].apply(match_original)]
+
+        # عرض النتائج
+        for _, r in results.iterrows():
+            st.markdown(
+                f"""
+                <b>{r['surah_name']} ({r['ayah_number']})</b><br>
+                <span style="color:green;font-weight:bold;">
+                    {extract_original_letters(r['ayah_text'])}
+                </span><br>
+                {highlight_tashkeel(r['ayah_text'])}
+                <hr>
+                """,
+                unsafe_allow_html=True
+            )
 
 elif search_type == "بحث برقم الآية":
     num = st.number_input("رقم الآية", 1)
