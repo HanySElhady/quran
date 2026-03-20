@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import re
-from io import BytesIO
 from PIL import Image
 import os
 
@@ -17,33 +16,33 @@ st.set_page_config(
 # =========================
 # صورة العنوان
 # =========================
-header_img = Image.open("assets/header.png")
-st.image(header_img, use_container_width=True)
+try:
+    header_img = Image.open("assets/header.png")
+    st.image(header_img, use_container_width=True)
+except:
+    pass
 
 # =========================
-# إزالة التشكيل
+# أدوات النص
 # =========================
 def remove_tashkeel(text):
     return re.sub(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]', '', str(text))
 
-# =========================
-# تلوين التشكيل
-# =========================
 def highlight_tashkeel(text):
     return re.sub(
         r'([\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED])',
-        r'<span style="color:#CFA500; font-weight:bold;">\1</span>',
+        r'<span style="color:#CFA500;font-weight:bold;">\1</span>',
         text
     )
 
-# =========================
-# توحيد الهمزات → ألف
-# =========================
 def normalize_hamza_to_alif(text):
     return re.sub(r"[أإآؤئء]", "ا", text)
 
+def normalize_for_word_search(text):
+    return normalize_hamza_to_alif(remove_tashkeel(text))
+
 # =========================
-# 🔥 البحث الشامل (توحيد الحروف)
+# البحث الشامل
 # =========================
 def normalize_letters_for_new_search(text):
     text = remove_tashkeel(text)
@@ -56,24 +55,40 @@ def normalize_letters_for_new_search(text):
     return text
 
 # =========================
-# استخراج الحروف الأصلية
+# الحروف الأصلية
 # =========================
-def extract_original_letters(ayah):
-    txt = remove_tashkeel(ayah)
-    txt = re.sub(r'[^ءابتثجحخدذرزسشصضطظعغفقكلمنهوي]', '', txt)
-    letters = []
-    for c in txt:
-        if c not in letters:
-            letters.append(c)
-    return "".join(letters)
+def extract_original_letters(text):
+    text = remove_tashkeel(text)
+    text = re.sub(r'[^ءابتثجحخدذرزسشصضطظعغفقكلمنهوي]', '', text)
+    seen = []
+    for c in text:
+        if c not in seen:
+            seen.append(c)
+    return "".join(seen)
 
 # =========================
-# تجهيز نص للبحث بالكلمة
+# تظليل
 # =========================
-def normalize_for_word_search(text):
-    text = remove_tashkeel(text)
-    text = normalize_hamza_to_alif(text)
-    return text
+def highlight_chars(text, keyword):
+    k = remove_tashkeel(keyword)
+    return "".join(
+        f'<span style="color:green;font-weight:bold;">{c}</span>' if remove_tashkeel(c) in k else c
+        for c in text
+    )
+
+def highlight_chars_normalized(text, keyword):
+    k = normalize_letters_for_new_search(keyword)
+    used = []
+    result = ""
+
+    for c in text:
+        cn = normalize_letters_for_new_search(c)
+        if cn in k and used.count(cn) < k.count(cn):
+            result += f'<span style="color:#CFA500;font-weight:900;">{c}</span>'
+            used.append(cn)
+        else:
+            result += c
+    return result
 
 # =========================
 # تنظيف اسم السورة
@@ -88,158 +103,157 @@ def clean_surah_name(name):
 # =========================
 @st.cache_data
 def get_surah_files():
-    files = {}
-    files[0] = {"name": "القرآن كله", "path": None}
-    for file in os.listdir("data"):
-        if file.endswith(".xlsx"):
-            match = re.match(r"^(\d+)", file)
-            surah_num = int(match.group(1)) if match else 999
-            surah_name = clean_surah_name(file)
-            files[surah_num] = {"name": surah_name, "path": os.path.join("data", file)}
+    files = {0: {"name": "القرآن كله", "path": None}}
+    for f in os.listdir("data"):
+        if f.endswith(".xlsx"):
+            num = int(re.match(r"^(\d+)", f).group(1))
+            files[num] = {
+                "name": clean_surah_name(f),
+                "path": os.path.join("data", f)
+            }
     return dict(sorted(files.items()))
 
-surah_files_dict = get_surah_files()
-selected_surah = st.sidebar.selectbox("اختر السورة", [v["name"] for v in surah_files_dict.values()])
-
-def get_file_path_by_name(name):
-    for v in surah_files_dict.values():
-        if v["name"] == name:
-            return v["path"]
-    return None
+surah_files = get_surah_files()
+selected_surah = st.sidebar.selectbox("اختر السورة", [v["name"] for v in surah_files.values()])
 
 # =========================
 # تحميل البيانات
 # =========================
 @st.cache_data
 def load_data(name):
-    if name == "القرآن كله":
-        dfs = []
-        for v in surah_files_dict.values():
-            if v["path"]:
-                df = pd.read_excel(v["path"])
-                num = int(re.match(r"^(\d+)", os.path.basename(v["path"])).group(1))
-                df["surah_id"] = num
-                df["surah_name"] = clean_surah_name(v["name"])
-                dfs.append(df)
-        return pd.concat(dfs).sort_values(["surah_id","ayah_number"])
-    else:
-        path = get_file_path_by_name(name)
-        df = pd.read_excel(path)
-        num = int(re.match(r"^(\d+)", os.path.basename(path)).group(1))
-        df["surah_id"] = num
-        df["surah_name"] = clean_surah_name(name)
-        return df
+    rows = []
+    for v in surah_files.values():
+        if name != "القرآن كله" and v["name"] != name:
+            continue
+        if v["path"]:
+            df = pd.read_excel(v["path"])
+            num = int(re.match(r"^(\d+)", os.path.basename(v["path"])).group(1))
+            df["surah_id"] = num
+            df["surah_name"] = clean_surah_name(v["name"])
+            rows.append(df)
+    return pd.concat(rows).sort_values(["surah_id","ayah_number"]).reset_index(drop=True)
 
 df = load_data(selected_surah)
+
+# =========================
+# 📊 الإحصائيات (ذهبي)
+# =========================
+st.markdown("## 📊 إحصاءات")
+
+if selected_surah == "القرآن كله":
+    stats = (
+        df.groupby(["surah_id","surah_name"])["ayah_number"]
+        .max()
+        .reset_index()
+        .rename(columns={
+            "surah_id":"رقم السورة",
+            "surah_name":"اسم السورة",
+            "ayah_number":"عدد الآيات"
+        })
+    )
+
+    total = stats["عدد الآيات"].sum()
+
+    st.markdown(f"""
+    <div style="background:black;padding:15px;border-radius:10px;text-align:center;">
+    <h3>📖 إجمالي عدد الآيات</h3>
+    <h1 style="color:white;">{total}</h1>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <style>
+    .gold-table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 20px;
+        font-weight: bold;
+    }
+    .gold-table th, .gold-table td {
+        border: 2px solid #CFA500;
+        padding: 10px;
+        text-align: center;
+    }
+    .gold-table th {
+        background-color: #fff7e6;
+        color: #CFA500;
+        font-size: 22px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(
+        f'<div style="border:3px solid #CFA500;border-radius:10px;padding:5px;">{stats.to_html(index=False, classes="gold-table")}</div>',
+        unsafe_allow_html=True
+    )
 
 # =========================
 # نوع البحث
 # =========================
 search_type = st.radio(
     "اختر نوع البحث",
-    ["بحث برقم الآية","عرض السورة كاملة","بحث بالكلمة","بحث حروف الكلمة","بحث الحروف الشاملة","بحث الحروف الأصلية"],
+    ["بحث برقم الآية","عرض السورة","بحث بالكلمة","بحث بحروف الكلمة","بحث بالحروف شامل","بحث الحروف الأصلية"],
     horizontal=True
 )
 
 # =========================
-# تظليل
+# عرض
 # =========================
-def highlight_chars_as_input(text, keyword):
-    keyword_clean = remove_tashkeel(keyword)
-    result = ""
-    for c in text:
-        if remove_tashkeel(c) in keyword_clean:
-            result += f'<span style="color:green;font-weight:bold;">{c}</span>'
-        else:
-            result += c
-    return result
-# =========================
-# تظليل متوافق مع البحث الشامل
-# =========================
-def highlight_chars_normalized(text, keyword):
-    keyword_norm = normalize_letters_for_new_search(keyword)
-    result = ""
-    used = []
-
-    for c in text:
-        c_norm = normalize_letters_for_new_search(c)
-
-        if c_norm in keyword_norm and used.count(c_norm) < keyword_norm.count(c_norm):
-            result += f'<span style="color:gold;font-weight:900;">{c}</span>'
-            used.append(c_norm)
-        else:
-            result += c
-
-    return result
-# =========================
-# 🔎 بحث بالكلمة
-# =========================
-if search_type == "بحث بالكلمة":
-    keyword = st.text_input("اكتب الكلمة")
-    if keyword:
-        results = df[df["ayah_text"].apply(lambda x: normalize_for_word_search(keyword) in normalize_for_word_search(x))]
-        st.write(len(results))
-        for _, r in results.iterrows():
-            st.markdown(f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{highlight_tashkeel(r['ayah_text'])}", unsafe_allow_html=True)
-
-# =========================
-# 🔍 بحث حروف الكلمة
-# =========================
-elif search_type == "بحث حروف الكلمة":
-    keyword = st.text_input("اكتب الحروف")
-    if keyword:
-        k = remove_tashkeel(keyword)
-        results = df[df["ayah_text"].apply(lambda x: all(x.count(c) >= k.count(c) for c in set(k)))]
-        st.write(len(results))
-        for _, r in results.iterrows():
-            st.markdown(f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{highlight_tashkeel(highlight_chars_as_input(r['ayah_text'], keyword))}", unsafe_allow_html=True)
-
-# =========================
-# 🔥 البحث بالحروف الشاملة
-# =========================
-elif search_type == "بحث الحروف الشاملة":
-    keyword = st.text_input("اكتب الحروف (بحث شامل)")
-
-    if keyword:
-        k = normalize_letters_for_new_search(keyword)
-
-        def match(ayah):
-            a = normalize_letters_for_new_search(ayah)
-            return all(a.count(c) >= k.count(c) for c in set(k))
-
-        results = df[df["ayah_text"].apply(match)]
-
-        st.write(len(results))
-
-        for _, r in results.iterrows():
-            st.markdown(
-                f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>"
-                f"{highlight_tashkeel(highlight_chars_normalized(r['ayah_text'], keyword))}",
-                unsafe_allow_html=True
-            )
-
-# =========================
-# 🔢 رقم الآية
-# =========================
-elif search_type == "بحث برقم الآية":
-    num = st.number_input("رقم الآية", 1)
-    results = df[df["ayah_number"] == num]
+def show_results(results, keyword=None, mode="normal"):
+    st.markdown(f"### 📌 عدد النتائج: {len(results)}")
     for _, r in results.iterrows():
-        st.markdown(f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{highlight_tashkeel(r['ayah_text'])}", unsafe_allow_html=True)
+        text = r["ayah_text"]
+
+        if keyword:
+            if mode == "chars":
+                text = highlight_chars(text, keyword)
+            elif mode == "normalized":
+                text = highlight_chars_normalized(text, keyword)
+
+        text = highlight_tashkeel(text)
+
+        st.markdown(
+            f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{text}<hr>",
+            unsafe_allow_html=True
+        )
 
 # =========================
-# 📖 عرض السورة
+# أنواع البحث
 # =========================
-elif search_type == "عرض السورة كاملة":
-    for _, r in df.iterrows():
-        st.markdown(f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{highlight_tashkeel(r['ayah_text'])}", unsafe_allow_html=True)
+if search_type == "عرض السورة":
+    show_results(df)
 
-# =========================
-# 🔠 الحروف الأصلية
-# =========================
+elif search_type == "بحث بالكلمة":
+    k = st.text_input("اكتب الكلمة")
+    if k:
+        res = df[df["ayah_text"].apply(lambda x: normalize_for_word_search(k) in normalize_for_word_search(x))]
+        show_results(res, k)
+
+elif search_type == "بحث بحروف الكلمة":
+    k = st.text_input("بحث بحروف الكلمة")
+    if k:
+        kk = remove_tashkeel(k)
+        res = df[df["ayah_text"].apply(lambda x: all(x.count(c) >= kk.count(c) for c in set(kk)))]
+        show_results(res, k, "chars")
+
+elif search_type == "بحث بالحروف شامل":
+    k = st.text_input("بحث بالحروف شامل")
+    if k:
+        kk = normalize_letters_for_new_search(k)
+        res = df[df["ayah_text"].apply(lambda x: all(
+            normalize_letters_for_new_search(x).count(c) >= kk.count(c)
+            for c in set(kk)
+        ))]
+        show_results(res, k, "normalized")
+
 elif search_type == "بحث الحروف الأصلية":
     for _, r in df.iterrows():
-        st.markdown(f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{extract_original_letters(r['ayah_text'])}", unsafe_allow_html=True)
+        st.markdown(f"{extract_original_letters(r['ayah_text'])}")
+
+elif search_type == "بحث برقم الآية":
+    num = st.number_input("رقم الآية", 1)
+    res = df[df["ayah_number"] == num]
+    show_results(res)
 
 # =========================
 # Footer
@@ -248,4 +262,4 @@ try:
     footer_img = Image.open("assets/footer.png")
     st.image(footer_img)
 except:
-    st.warning("⚠ لم يتم العثور على صورة الفوتر")
+    pass
