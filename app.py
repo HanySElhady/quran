@@ -228,7 +228,8 @@ def show_results(results, keyword=None, mode="normal"):
 # دالة تصدير PDF
 # =========================
 def export_to_pdf_arabic_long(df, search_term, filename="نتائج.pdf"):
-    pdfmetrics.registerFont(TTFont('Amiri', 'Amiri-Regular.ttf'))
+    font_path = os.path.join(os.path.dirname(__file__), "assets", "fonts", "Amiri-Regular.ttf")
+    pdfmetrics.registerFont(TTFont('Amiri', font_path))
     
     doc = SimpleDocTemplate(filename, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     
