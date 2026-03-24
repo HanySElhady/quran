@@ -3,6 +3,13 @@ import pandas as pd
 import re
 from PIL import Image
 import os
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 # =========================
 # إعداد الصفحة
@@ -197,7 +204,7 @@ search_type = st.radio(
 )
 
 # =========================
-# عرض
+# عرض النتائج
 # =========================
 def show_results(results, keyword=None, mode="normal"):
     st.markdown(f"### 📌 عدد النتائج: {len(results)}")
@@ -218,6 +225,43 @@ def show_results(results, keyword=None, mode="normal"):
         )
 
 # =========================
+# دالة تصدير PDF
+# =========================
+def export_to_pdf_arabic_long(df, search_term, filename="نتائج.pdf"):
+    pdfmetrics.registerFont(TTFont('Amiri', 'Amiri-Regular.ttf'))
+    
+    doc = SimpleDocTemplate(filename, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    
+    styles = getSampleStyleSheet()
+    arabic_style = ParagraphStyle(
+        'Arabic',
+        parent=styles['Normal'],
+        fontName='Amiri',
+        fontSize=10,
+        leading=24,
+        alignment=2,  # 2 = RIGHT alignment
+    )
+    
+    elements = []
+    
+    # العنوان
+    reshaped_title = arabic_reshaper.reshape(f"نتائج البحث عن: {search_term}")
+    bidi_title = get_display(reshaped_title)
+    elements.append(Paragraph(f"<b>{bidi_title}</b>", arabic_style))
+    elements.append(Spacer(-1, 8))
+    
+    # الآيات
+    for _, row in df.iterrows():
+        ayah_text = f"{row['surah_name']} ({row['ayah_number']}): {row['ayah_text']}"
+        reshaped_text = arabic_reshaper.reshape(ayah_text)
+        bidi_text = get_display(reshaped_text)
+        elements.append(Paragraph(bidi_text, arabic_style))
+        elements.append(Spacer(-1, 8))
+    
+    doc.build(elements)
+    return filename
+
+# =========================
 # أنواع البحث
 # =========================
 if search_type == "عرض السورة":
@@ -235,42 +279,35 @@ elif search_type == "بحث بحروف الكلمة":
         kk = remove_tashkeel(k)
         res = df[df["ayah_text"].apply(lambda x: all(x.count(c) >= kk.count(c) for c in set(kk)))]
         show_results(res, k, "chars")
+        if not res.empty:
+            if st.button("تصدير النتائج إلى PDF"):
+                filename = export_to_pdf_arabic_long(res, k)
+                with open(filename, "rb") as f:
+                    st.download_button("تحميل PDF", f, file_name=filename)
 
 elif search_type == "بحث بالحروف شامل":
     k = st.text_input("بحث بالحروف شامل")
     if k:
         kk = normalize_letters_for_new_search(k)
-        res = df[df["ayah_text"].apply(lambda x: all(
-            normalize_letters_for_new_search(x).count(c) >= kk.count(c)
-            for c in set(kk)
-        ))]
+        res = df[df["ayah_text"].apply(lambda x: all(normalize_letters_for_new_search(x).count(c) >= kk.count(c) for c in set(kk)))]
         show_results(res, k, "normalized")
+        if not res.empty:
+            if st.button("تصدير النتائج إلى PDF"):
+                filename = export_to_pdf_arabic_long(res, k)
+                with open(filename, "rb") as f:
+                    st.download_button("تحميل PDF", f, file_name=filename)
 
 elif search_type == "بحث الحروف الأصلية":
-
     st.markdown("### 🔠 البحث بالحروف الأصلية")
-
-    user_input = st.text_input(
-        "اكتب آية أو كلمة لاستخراج الحروف الأصلية ثم البحث بها",
-        placeholder="مثال: الحمد لله رب العالمين"
-    )
-
+    user_input = st.text_input("اكتب آية أو كلمة لاستخراج الحروف الأصلية ثم البحث بها", placeholder="مثال: الحمد لله رب العالمين")
     if user_input:
-
-        # استخراج الحروف الأصلية من الإدخال
         extracted = extract_original_letters(user_input)
-
         st.markdown(f"### الحروف الأصلية المستخرجة: **{extracted}**")
         st.divider()
-
-        # البحث في القرآن
         def match_original(ayah):
             ayah_letters = extract_original_letters(ayah)
             return all(ayah_letters.count(c) >= extracted.count(c) for c in set(extracted))
-
         results = df[df["ayah_text"].apply(match_original)]
-
-        # عرض النتائج
         for _, r in results.iterrows():
             st.markdown(
                 f"""
