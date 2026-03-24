@@ -202,10 +202,6 @@ search_type = st.radio(
     ["بحث برقم الآية","عرض السورة","بحث بالكلمة","بحث بحروف الكلمة","بحث بالحروف شامل","بحث الحروف الأصلية"],
     horizontal=True
 )
-
-# =========================
-# عرض النتائج
-# =========================
 # =========================
 # عرض النتائج
 # =========================
@@ -230,7 +226,7 @@ def show_results(results, keyword=None, mode="normal"):
 # =========================
 # دالة تصدير PDF
 # =========================
-def export_to_pdf_arabic_long(df, search_term, filename="نتائج.pdf"):
+def export_to_pdf_arabic_long(df, search_term, filename="QuranKarim.pdf"):
     # بناء المسار النسبي للخط بناءً على مجلد التشغيل الحالي
     font_path = os.path.join(os.getcwd(), "assets", "fonts", "Amiri-Regular.ttf")
     if not os.path.isfile(font_path):
