@@ -206,24 +206,44 @@ search_type = st.radio(
 # =========================
 # عرض النتائج
 # =========================
-def show_results(results, keyword=None, mode="normal"):
-    st.markdown(f"### 📌 عدد النتائج: {len(results)}")
-    for _, r in results.iterrows():
-        text = r["ayah_text"]
+def export_to_pdf_arabic_long(df, search_term, filename="نتائج.pdf"):
+    # بناء المسار النسبي للخط بناءً على مجلد التشغيل الحالي
+    font_path = os.path.join(os.getcwd(), "assets", "fonts", "Amiri-Regular.ttf")
+    if not os.path.isfile(font_path):
+        raise FileNotFoundError(f"الخط غير موجود في المسار: {font_path}")
 
-        if keyword:
-            if mode == "chars":
-                text = highlight_chars(text, keyword)
-            elif mode == "normalized":
-                text = highlight_chars_normalized(text, keyword)
-
-        text = highlight_tashkeel(text)
-
-        st.markdown(
-            f"<b>{r['surah_name']} ({r['ayah_number']})</b><br>{text}<hr>",
-            unsafe_allow_html=True
-        )
-
+    pdfmetrics.registerFont(TTFont('Amiri', font_path))
+    
+    doc = SimpleDocTemplate(filename, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    
+    styles = getSampleStyleSheet()
+    arabic_style = ParagraphStyle(
+        'Arabic',
+        parent=styles['Normal'],
+        fontName='Amiri',
+        fontSize=10,
+        leading=24,
+        alignment=2,  # 2 = RIGHT alignment
+    )
+    
+    elements = []
+    
+    # العنوان
+    reshaped_title = arabic_reshaper.reshape(f"نتائج البحث عن: {search_term}")
+    bidi_title = get_display(reshaped_title)
+    elements.append(Paragraph(f"<b>{bidi_title}</b>", arabic_style))
+    elements.append(Spacer(-1, 8))
+    
+    # الآيات
+    for _, row in df.iterrows():
+        ayah_text = f"{row['surah_name']} ({row['ayah_number']}): {row['ayah_text']}"
+        reshaped_text = arabic_reshaper.reshape(ayah_text)
+        bidi_text = get_display(reshaped_text)
+        elements.append(Paragraph(bidi_text, arabic_style))
+        elements.append(Spacer(-1, 8))
+    
+    doc.build(elements)
+    return filename
 # =========================
 # دالة تصدير PDF
 # =========================
