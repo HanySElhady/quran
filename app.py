@@ -59,7 +59,6 @@ def normalize_letters_for_new_search(text):
     text = re.sub(r"[يى]", "ي", text)
     text = re.sub(r"[ةه]", "ه", text)
     text = re.sub(r"[ؤ]", "و", text)
-    text = re.sub(r"[غ]", "ع", text)
     text = re.sub(r'[^ا-ي]', '', text)
     return text
 
