@@ -228,7 +228,7 @@ def show_results(results, keyword=None, mode="normal"):
 # =========================
 # دالة تصدير PDF
 # =========================
-def export_to_pdf_arabic(df, search_term, filename="نتائج.pdf"):
+def export_to_pdf_arabic(df, search_term, filename="QuranKarim.pdf"):
     font_path = os.path.join("assets", "fonts", "Amiri-Regular.ttf")
     pdfmetrics.registerFont(TTFont('Amiri', font_path))
 
