@@ -7,6 +7,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase import pdfmetrics
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -226,45 +228,73 @@ def show_results(results, keyword=None, mode="normal"):
 # =========================
 # دالة تصدير PDF
 # =========================
-def export_to_pdf_arabic_long(df, search_term, filename="QuranKarim.pdf"):
-    # بناء المسار النسبي للخط بناءً على مجلد التشغيل الحالي
-    font_path = os.path.join(os.getcwd(), "assets", "fonts", "Amiri-Regular.ttf")
-    if not os.path.isfile(font_path):
-        raise FileNotFoundError(f"الخط غير موجود في المسار: {font_path}")
-
+def export_to_pdf_arabic(df, search_term, filename="نتائج.pdf"):
+    font_path = os.path.join("assets", "fonts", "Amiri-Regular.ttf")
     pdfmetrics.registerFont(TTFont('Amiri', font_path))
-    
-    doc = SimpleDocTemplate(filename, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
-    
-    styles = getSampleStyleSheet()
-    arabic_style = ParagraphStyle(
-        'Arabic',
-        parent=styles['Normal'],
-        fontName='Amiri',
-        fontSize=10,
-        leading=24,
-        alignment=2,  # 2 = RIGHT alignment
-    )
-    
-    elements = []
-    
-    # العنوان
-    reshaped_title = arabic_reshaper.reshape(f"نتائج البحث عن: {search_term}")
-    bidi_title = get_display(reshaped_title)
-    elements.append(Paragraph(f"<b>{bidi_title}</b>", arabic_style))
-    elements.append(Spacer(-1, 8))
-    
-    # الآيات
-    for _, row in df.iterrows():
-        ayah_text = f"{row['surah_name']} ({row['ayah_number']}): {row['ayah_text']}"
-        reshaped_text = arabic_reshaper.reshape(ayah_text)
-        bidi_text = get_display(reshaped_text)
-        elements.append(Paragraph(bidi_text, arabic_style))
-        elements.append(Spacer(-1, 8))
-    
-    doc.build(elements)
-    return filename
 
+    c = canvas.Canvas(filename, pagesize=A4)
+    width, height = A4
+    c.setFont("Amiri", 14)
+
+    def shape(text):
+        return get_display(arabic_reshaper.reshape(text))
+
+    def wrap_text(text, max_width):
+        words = text.split()
+        lines = []
+        current = ""
+
+        for word in words:
+            test = (current + " " + word).strip()
+            w = stringWidth(test, "Amiri", 14)
+
+            if w <= max_width:
+                current = test
+            else:
+                lines.append(current)
+                current = word
+
+        if current:
+            lines.append(current)
+
+        return lines
+
+    # ===== خلفية =====
+    try:
+        bg_path = os.path.join("assets", "header.png")
+        c.drawImage(bg_path, 0, height - 150, width=width, height=150)
+    except:
+        pass
+
+    y = height - 170
+
+    title = shape(f"نتائج البحث عن: {search_term}")
+    c.drawRightString(width - 40, y, title)
+
+    y -= 30
+    max_width = width - 80
+
+    for _, row in df.iterrows():
+        full_text = f"{row['surah_name']} ({row['ayah_number']}): {row['ayah_text']}"
+
+        # تقسيم قبل التشكيل (الحل النهائي)
+        lines = wrap_text(full_text, max_width)
+
+        for line in lines:
+            shaped_line = shape(line)
+
+            if y < 40:
+                c.showPage()
+                c.setFont("Amiri", 14)
+                y = height - 40
+
+            c.drawRightString(width - 40, y, shaped_line)
+            y -= 22
+
+        y -= 10
+
+    c.save()
+    return filename
 # =========================
 # أنواع البحث
 # =========================
