@@ -315,7 +315,7 @@ elif search_type == "بحث بحروف الكلمة":
         show_results(res, k, "chars")
         if not res.empty:
             if st.button("تصدير النتائج إلى PDF"):
-                filename = export_to_pdf_arabic_long(res, k)
+                filename = export_to_pdf_arabic(res, k)
                 with open(filename, "rb") as f:
                     st.download_button("تحميل PDF", f, file_name=filename)
 
@@ -327,7 +327,7 @@ elif search_type == "بحث بالحروف شامل":
         show_results(res, k, "normalized")
         if not res.empty:
             if st.button("تصدير النتائج إلى PDF"):
-                filename = export_to_pdf_arabic_long(res, k)
+                filename = export_to_pdf_arabic(res, k)
                 with open(filename, "rb") as f:
                     st.download_button("تحميل PDF", f, file_name=filename)
 
