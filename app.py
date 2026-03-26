@@ -48,13 +48,16 @@ def normalize_hamza_to_alif(text):
     return re.sub(r"[أإآؤئء]", "ا", text)
 
 def normalize_for_word_search(text):
-    return normalize_hamza_to_alif(remove_tashkeel(text))
+    text = normalize_hamza_to_alif(remove_tashkeel(text))
+    text = re.sub(r'\s+', '', text)  # ❗ حذف المسافات
+    return text
 
 # =========================
 # البحث الشامل
 # =========================
 def normalize_letters_for_new_search(text):
     text = remove_tashkeel(text)
+    text = re.sub(r'\s+', '', text)  # ❗ حذف المسافات
     text = re.sub(r"[أإآء]", "ا", text)
     text = re.sub(r"[يى]", "ي", text)
     text = re.sub(r"[ةه]", "ه", text)
@@ -93,6 +96,19 @@ def highlight_chars(text, keyword):
 
     return result
 
+def highlight_chars_normalized(text, keyword):
+    k = normalize_letters_for_new_search(keyword)
+    used = []
+    result = ""
+
+    for c in text:
+        cn = normalize_letters_for_new_search(c)
+        if cn in k and used.count(cn) < k.count(cn):
+            result += f'<span style="color:#CFA500;font-weight:900;">{c}</span>'
+            used.append(cn)
+        else:
+            result += c
+    return result
 # =========================
 # تنظيف اسم السورة
 # =========================
@@ -306,8 +322,13 @@ elif search_type == "بحث بالكلمة":
 elif search_type == "بحث بحروف الكلمة":
     k = st.text_input("بحث بحروف الكلمة")
     if k:
-        kk = remove_tashkeel(k)
-        res = df[df["ayah_text"].apply(lambda x: all(x.count(c) >= kk.count(c) for c in set(kk)))]
+        kk = re.sub(r'\s+', '', remove_tashkeel(k))  # ❗ حذف المسافات
+        res = df[df["ayah_text"].apply(
+            lambda x: all(
+                remove_tashkeel(x).replace(" ", "").count(c) >= kk.count(c)
+                for c in set(kk)
+            )
+        )]
 
         # 👇 الزرار فوق
         if not res.empty:
