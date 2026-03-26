@@ -79,23 +79,18 @@ def extract_original_letters(text):
 # =========================
 def highlight_chars(text, keyword):
     k = remove_tashkeel(keyword)
-    return "".join(
-        f'<span style="color:green;font-weight:bold;">{c}</span>' if remove_tashkeel(c) in k else c
-        for c in text
-    )
-
-def highlight_chars_normalized(text, keyword):
-    k = normalize_letters_for_new_search(keyword)
     used = []
     result = ""
 
     for c in text:
-        cn = normalize_letters_for_new_search(c)
-        if cn in k and used.count(cn) < k.count(cn):
-            result += f'<span style="color:#CFA500;font-weight:900;">{c}</span>'
-            used.append(cn)
+        base_char = remove_tashkeel(c)
+
+        if base_char in k and used.count(base_char) < k.count(base_char):
+            result += f'<span style="color:green;font-weight:bold;">{c}</span>'
+            used.append(base_char)
         else:
             result += c
+
     return result
 
 # =========================
@@ -203,6 +198,7 @@ search_type = st.radio(
     ["بحث برقم الآية","عرض السورة","بحث بالكلمة","بحث بحروف الكلمة","بحث بالحروف شامل","بحث الحروف الأصلية"],
     horizontal=True
 )
+
 # =========================
 # عرض النتائج
 # =========================
@@ -294,6 +290,7 @@ def export_to_pdf_arabic(df, search_term, filename="QuranKarim.pdf"):
 
     c.save()
     return filename
+
 # =========================
 # أنواع البحث
 # =========================
@@ -311,36 +308,60 @@ elif search_type == "بحث بحروف الكلمة":
     if k:
         kk = remove_tashkeel(k)
         res = df[df["ayah_text"].apply(lambda x: all(x.count(c) >= kk.count(c) for c in set(kk)))]
-        show_results(res, k, "chars")
+
+        # 👇 الزرار فوق
         if not res.empty:
-            if st.button("تصدير النتائج إلى PDF"):
+            if st.button("📥 تصدير النتائج إلى PDF", key="chars_pdf"):
                 filename = export_to_pdf_arabic(res, k)
                 with open(filename, "rb") as f:
                     st.download_button("تحميل PDF", f, file_name=filename)
+
+        # 👇 بعده النتائج
+        show_results(res, k, "chars")
 
 elif search_type == "بحث بالحروف شامل":
     k = st.text_input("بحث بالحروف شامل")
     if k:
         kk = normalize_letters_for_new_search(k)
-        res = df[df["ayah_text"].apply(lambda x: all(normalize_letters_for_new_search(x).count(c) >= kk.count(c) for c in set(kk)))]
-        show_results(res, k, "normalized")
+        res = df[df["ayah_text"].apply(lambda x: all(
+            normalize_letters_for_new_search(x).count(c) >= kk.count(c)
+            for c in set(kk)
+        ))]
+
+        # 👇 الزرار فوق
         if not res.empty:
-            if st.button("تصدير النتائج إلى PDF"):
+            if st.button("📥 تصدير النتائج إلى PDF", key="full_pdf"):
                 filename = export_to_pdf_arabic(res, k)
                 with open(filename, "rb") as f:
                     st.download_button("تحميل PDF", f, file_name=filename)
 
+        # 👇 بعده النتائج
+        show_results(res, k, "normalized")
+
 elif search_type == "بحث الحروف الأصلية":
     st.markdown("### 🔠 البحث بالحروف الأصلية")
-    user_input = st.text_input("اكتب آية أو كلمة لاستخراج الحروف الأصلية ثم البحث بها", placeholder="مثال: الحمد لله رب العالمين")
+
+    user_input = st.text_input(
+        "اكتب آية أو كلمة لاستخراج الحروف الأصلية ثم البحث بها",
+        placeholder="مثال: الحمد لله رب العالمين"
+    )
+
     if user_input:
+        from collections import Counter
+
         extracted = extract_original_letters(user_input)
+
         st.markdown(f"### الحروف الأصلية المستخرجة: **{extracted}**")
         st.divider()
+
         def match_original(ayah):
             ayah_letters = extract_original_letters(ayah)
-            return all(ayah_letters.count(c) >= extracted.count(c) for c in set(extracted))
+            return Counter(ayah_letters) == Counter(extracted)
+
         results = df[df["ayah_text"].apply(match_original)]
+
+        st.markdown(f"### 📌 عدد النتائج: {len(results)}")
+
         for _, r in results.iterrows():
             st.markdown(
                 f"""
