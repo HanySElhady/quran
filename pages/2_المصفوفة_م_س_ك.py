@@ -245,9 +245,6 @@ def gregorian_to_hijri(year, month, day):
 
 # =========================================================
 # تحويل السنة الهجرية إلى السنة الميلادية المقابلة
-#
-# نأخذ منتصف السنة الهجرية تقريبًا لتحديد السنة
-# الميلادية التي تمثلها السنة الهجرية.
 # =========================================================
 
 def hijri_year_to_gregorian_year(hijri_year):
@@ -598,7 +595,7 @@ def show_ayah_results(results):
                     margin-bottom:10px;
                 ">
 
-                    سورة {r['surah_id']} —
+                    سورة  —
                     {clean_name}
 
                     &nbsp;&nbsp; | &nbsp;&nbsp;
@@ -851,3 +848,43 @@ if hijri_input:
     show_ayah_results(
         gregorian_results
     )
+
+    # =========================
+    # Footer
+    # =========================
+    # =========================
+    # Footer
+    # =========================
+    try:
+        footer_img = Image.open("assets/footer.png")
+
+        import io
+        import base64
+
+        buffer = io.BytesIO()
+        footer_img.save(buffer, format="PNG")
+        footer_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        st.html(
+            f"""
+            <div style="
+                width:100%;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                margin-top:30px;
+                margin-bottom:20px;
+            ">
+                <img
+                    src="data:image/png;base64,{footer_base64}"
+                    style="
+                        max-width:100%;
+                        height:auto;
+                    "
+                >
+            </div>
+            """
+        )
+
+    except:
+        pass
