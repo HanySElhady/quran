@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import os
 import math
+from datetime import datetime
 from PIL import Image
 
 
@@ -24,7 +25,7 @@ st.set_page_config(
 try:
     header_img = Image.open("assets/header.png")
     st.image(header_img, use_container_width=True)
-except:
+except Exception:
     pass
 
 
@@ -39,9 +40,11 @@ def load_quran_all():
 
     for f in os.listdir("data"):
 
-        if not f.endswith(".xlsx"):
+        # ملفات Excel فقط
+        if not f.lower().endswith(".xlsx"):
             continue
 
+        # استخراج رقم السورة من بداية اسم الملف
         match = re.match(r"^(\d+)", f)
 
         if not match:
@@ -51,28 +54,63 @@ def load_quran_all():
 
         path = os.path.join("data", f)
 
-        df = pd.read_excel(path)
+        try:
+            df_surah = pd.read_excel(path)
+        except Exception:
+            continue
 
-        df["surah_id"] = surah_id
+        # =================================================
+        # تنظيف اسم السورة
+        # =================================================
 
-        # اسم السورة
-        surah_name = re.sub(r"^\d+[_\-]*", "", f)
-        surah_name = re.sub(r"\.xlsx$", "", surah_name)
+        surah_name = re.sub(
+            r"^\s*\d+\s*[-_ ]*\s*",
+            "",
+            f
+        )
 
-        df["surah_name"] = surah_name.strip()
+        surah_name = re.sub(
+            r"\.xlsx$",
+            "",
+            surah_name,
+            flags=re.IGNORECASE
+        )
 
-        rows.append(df)
+        # دعم الأرقام العربية في اسم الملف
+        surah_name = re.sub(
+            r"^\s*[٠-٩]+\s*[-_ ]*\s*",
+            "",
+            surah_name
+        )
+
+        surah_name = surah_name.strip()
+
+        # إضافة بيانات السورة
+        df_surah["surah_id"] = surah_id
+        df_surah["surah_name"] = surah_name
+
+        rows.append(df_surah)
+
+    # =====================================================
+    # لا توجد ملفات
+    # =====================================================
 
     if not rows:
         return pd.DataFrame()
 
-    # تجميع جميع السور
+    # =====================================================
+    # تجميع القرآن
+    # =====================================================
+
     quran = pd.concat(
         rows,
         ignore_index=True
     )
 
-    # ترتيب السور ثم الآيات
+    # =====================================================
+    # ترتيب السور والآيات
+    # =====================================================
+
     quran = quran.sort_values(
         ["surah_id", "ayah_number"]
     ).reset_index(drop=True)
@@ -97,7 +135,7 @@ df = load_quran_all()
 
 
 # =========================================================
-# التحقق من وجود البيانات
+# التحقق من البيانات
 # =========================================================
 
 if df.empty:
@@ -120,81 +158,184 @@ CONSTANT = TOTAL_AYAT / TOTAL_HOURS
 
 
 # =========================================================
-# السنة الهجرية الحالية
-# =========================================================
-# اليوم 7 أكتوبر 2026 = 1448 هـ في مصر
+# قراءة التاريخ الحالي
 # =========================================================
 
-CURRENT_HIJRI_YEAR = 1448
+today = datetime.now()
+
+CURRENT_GREGORIAN_YEAR = today.year
+
+
+# =========================================================
+# حساب السنة الهجرية الحالية
+# =========================================================
+
+def gregorian_to_hijri_year(year, month, day):
+
+    jd = (
+        367 * year
+        - int(
+            (7 * (
+                year + int((month + 9) / 12)
+            )) / 4
+        )
+        + int((275 * month) / 9)
+        + day
+        + 1721013.5
+    )
+
+    hijri_year = int(
+        (
+            30 * (jd - 1948439.5) + 10646
+        ) / 10631
+    )
+
+    return hijri_year
+
+
+CURRENT_HIJRI_YEAR = gregorian_to_hijri_year(
+    today.year,
+    today.month,
+    today.day
+)
+
+
+# =========================================================
+# عنوان الصفحة
+# =========================================================
+
+st.markdown(
+    "## 📅 مصفوفة م س ك (R G B)"
+)
+
+
+# =========================================================
+# اختيار نوع السنة
+# =========================================================
+
+date_type = st.radio(
+    "اختر نوع السنة:",
+    [
+        "السنة الهجرية",
+        "السنة الميلادية"
+    ],
+    horizontal=True
+)
+
+
+# =========================================================
+# متغير السنة المستخدمة في المعادلة
+# =========================================================
+
+input_year = None
+year_label = ""
 
 
 # =========================================================
 # إدخال السنة الهجرية
 # =========================================================
 
-st.markdown("### 📅 أدخل السنة الهجرية")
+if date_type == "السنة الهجرية":
 
+    hijri_input = st.text_input(
+        "أدخل السنة الهجرية",
+        placeholder="مثال: 1395",
+        key="hijri_year_input"
+    )
 
-hijri_input = st.text_input(
-    "السنة الهجرية",
-    placeholder="مثال: 1395",
-    key="hijri_year_input"
-)
+    if hijri_input:
+
+        if not hijri_input.isdigit():
+
+            st.error(
+                "⚠️ من فضلك أدخل السنة الهجرية كرقم صحيح."
+            )
+
+            st.stop()
+
+        input_year = int(hijri_input)
+        year_label = "هـ"
+
+        if input_year < 1:
+
+            st.error(
+                "⚠️ السنة الهجرية يجب أن تبدأ من 1 هـ."
+            )
+
+            st.stop()
+
+        if input_year > CURRENT_HIJRI_YEAR:
+
+            st.error(
+                f"⚠️ لا يمكن البحث في سنوات غيبية.\n\n"
+                f"السنة المدخلة: {input_year} هـ\n"
+                f"السنة الهجرية الحالية: {CURRENT_HIJRI_YEAR} هـ"
+            )
+
+            st.stop()
 
 
 # =========================================================
-# التحقق من السنة
+# إدخال السنة الميلادية
 # =========================================================
 
-if hijri_input:
+else:
 
-    # التأكد أن المدخل رقم صحيح
-    if not hijri_input.isdigit():
+    gregorian_input = st.text_input(
+        "أدخل السنة الميلادية",
+        placeholder="مثال: 1973",
+        key="gregorian_year_input"
+    )
 
-        st.error(
-            "⚠️ من فضلك أدخل السنة الهجرية كرقم صحيح."
-        )
+    if gregorian_input:
 
-        st.stop()
+        if not gregorian_input.isdigit():
 
+            st.error(
+                "⚠️ من فضلك أدخل السنة الميلادية كرقم صحيح."
+            )
 
-    hijri_year = int(hijri_input)
+            st.stop()
 
+        input_year = int(gregorian_input)
+        year_label = "م"
 
-    # =====================================================
-    # التأكد من أن السنة داخل النطاق
-    # =====================================================
+        if input_year < 1:
 
-    if hijri_year < 1:
+            st.error(
+                "⚠️ السنة الميلادية يجب أن تبدأ من 1 م."
+            )
 
-        st.error(
-            "⚠️ السنة الهجرية يجب أن تبدأ من 1 هـ."
-        )
+            st.stop()
 
-        st.stop()
+        if input_year > CURRENT_GREGORIAN_YEAR:
 
+            st.error(
+                f"⚠️ لا يمكن البحث في سنوات غيبية.\n\n"
+                f"السنة المدخلة: {input_year} م\n"
+                f"السنة الميلادية الحالية: {CURRENT_GREGORIAN_YEAR} م"
+            )
 
-    if hijri_year > CURRENT_HIJRI_YEAR:
-
-        st.error(
-            f"⚠️ لا يمكن البحث في سنوات غيبية. "
-            f"السنة المدخلة {hijri_year} هـ أكبر من السنة الحالية "
-            f"{CURRENT_HIJRI_YEAR} هـ."
-        )
-
-        st.stop()
+            st.stop()
 
 
-    # =====================================================
-    # الحساب
-    # =====================================================
+# =========================================================
+# تنفيذ المعادلة
+#
+# ملاحظة:
+# لا يوجد أي تحويل بين هجري وميلادي.
+# الرقم المدخل نفسه يدخل في المعادلة.
+# =========================================================
 
-    multiplication_result = hijri_year * CONSTANT
+if input_year is not None:
+
+    multiplication_result = (
+        input_year * CONSTANT
+    )
 
     subtraction_result = (
         multiplication_result - CONSTANT
     )
-
 
     # =====================================================
     # التقريب لأعلى
@@ -207,7 +348,6 @@ if hijri_input:
     lower_ayah = math.ceil(
         subtraction_result
     )
-
 
     # =====================================================
     # حماية الحدود
@@ -223,47 +363,56 @@ if hijri_input:
         upper_ayah
     )
 
-
     # =====================================================
-    # عرض نتائج الحساب
+    # النتائج
     # =====================================================
-
-    st.markdown("### 📊 نتائج المصفوفة")
-
 
     st.markdown(
-        f"""
-        <div style="
-            background:black;
-            padding:15px;
-            border-radius:10px;
-            text-align:center;
-            margin-bottom:15px;
-        ">
-
-        <div style="
-            color:#CFA500;
-            font-size:22px;
-            font-weight:bold;
-        ">
-        السنة الهجرية
-        </div>
-
-        <div style="
-            color:white;
-            font-size:32px;
-            font-weight:bold;
-        ">
-        {hijri_year} هـ
-        </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True
+        "### 📊 نتائج المصفوفة"
     )
 
 
-    st.markdown(
+    # =====================================================
+    # صندوق السنة
+    # =====================================================
+
+    st.html(
+        f"""
+        <div style="
+            background:black;
+            padding:18px;
+            border-radius:10px;
+            text-align:center;
+            margin-bottom:18px;
+        ">
+
+            <div style="
+                color:#CFA500;
+                font-size:22px;
+                font-weight:bold;
+            ">
+                السنة المستخدمة في المصفوفة
+            </div>
+
+            <div style="
+                color:white;
+                font-size:34px;
+                font-weight:bold;
+                margin-top:5px;
+            ">
+                {input_year} {year_label}
+            </div>
+
+        </div>
+        """
+    )
+
+
+    # =====================================================
+    # صندوق الحساب
+    # =====================================================
+
+    st.html(
         f"""
         <div style="
             background:#fff7e6;
@@ -277,41 +426,46 @@ if hijri_input:
             line-height:2;
         ">
 
-        الثابت =
-        {TOTAL_AYAT} ÷ {TOTAL_HOURS}
-        =
-        {CONSTANT:.11f}
+            الثابت =
+            {TOTAL_AYAT}
+            ÷
+            {TOTAL_HOURS}
+            =
+            {CONSTANT:.11f}
 
-        <br><br>
+            <br><br>
 
-        ناتج الضرب =
-        {hijri_year}
-        ×
-        {CONSTANT:.11f}
-        =
-        {multiplication_result:.11f}
+            ناتج الضرب =
+            {input_year}
+            ×
+            {CONSTANT:.11f}
+            =
+            {multiplication_result:.11f}
 
-        <br><br>
+            <br><br>
 
-        ناتج الطرح =
-        {multiplication_result:.11f}
-        -
-        {CONSTANT:.11f}
-        =
-        {subtraction_result:.11f}
+            ناتج الطرح =
+            {multiplication_result:.11f}
+            -
+            {CONSTANT:.11f}
+            =
+            {subtraction_result:.11f}
 
-        <br><br>
+            <br><br>
 
-        <span style="color:#CFA500;font-size:26px;">
-        نطاق الآيات:
-        {lower_ayah}
-        إلى
-        {upper_ayah}
-        </span>
+            <span style="
+                color:#CFA500;
+                font-size:28px;
+                font-weight:bold;
+            ">
+                نطاق الآيات:
+                {lower_ayah}
+                إلى
+                {upper_ayah}
+            </span>
 
         </div>
-        """,
-        unsafe_allow_html=True
+        """
     )
 
 
@@ -319,7 +473,7 @@ if hijri_input:
 
 
     # =====================================================
-    # استخراج الآيات المطلوبة فقط
+    # استخراج الآيات
     # =====================================================
 
     results = df[
@@ -330,8 +484,7 @@ if hijri_input:
 
 
     # =====================================================
-    # عرض النتائج
-    # بنفس شكل صفحة الباحث القرآني
+    # عدد النتائج
     # =====================================================
 
     st.markdown(
@@ -339,13 +492,65 @@ if hijri_input:
     )
 
 
+    # =====================================================
+    # عرض الآيات
+    # =====================================================
+
     for _, r in results.iterrows():
 
-        st.markdown(
+        clean_name = str(
+            r["surah_name"]
+        ).strip()
+
+        st.html(
             f"""
-            <b>{r['quran_ayah_number']}-</b>
-            {r['ayah_text']}
-            <hr>
-            """,
-            unsafe_allow_html=True
+            <div style="
+                direction:rtl;
+                text-align:right;
+                margin-bottom:30px;
+            ">
+
+                <div style="
+                    font-size:20px;
+                    font-weight:bold;
+                    color:#CFA500;
+                    margin-bottom:10px;
+                ">
+                    سورة {r['surah_id']} — {clean_name}
+                    &nbsp;&nbsp; | &nbsp;&nbsp;
+                    الآية {r['ayah_number']}
+                </div>
+
+
+                <div style="
+                    font-size:32px;
+                    line-height:2.3;
+                    color:#CFA500;
+                    font-weight:normal;
+                ">
+
+                    <span style="
+                        color:#222222;
+                        font-size:29px;
+                        font-weight:bold;
+                        white-space:nowrap;
+                    ">
+                        {r['quran_ayah_number']} —
+                    </span>
+
+                    <span>
+                        {r['ayah_text']}
+                    </span>
+
+                </div>
+
+
+                <div style="
+                    border-bottom:1px solid #CFA500;
+                    opacity:0.5;
+                    margin-top:15px;
+                "></div>
+
+            </div>
+            """
         )
