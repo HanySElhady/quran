@@ -162,6 +162,14 @@ CURRENT_GREGORIAN_YEAR = today.year
 
 
 # =========================================================
+# ألوان المصفوفة RGB
+# =========================================================
+HIJRI_COLOR = "#168A45"       # أخضر
+GREGORIAN_COLOR = "#1565C0"   # أزرق
+TRADITIONAL_COLOR = "#D32F2F"  # أحمر
+
+
+# =========================================================
 # تحويل التاريخ الميلادي إلى الهجري
 # =========================================================
 def gregorian_to_hijri(year, month, day):
@@ -809,7 +817,13 @@ def show_calculation_box(
 # =========================================================
 # عرض الآيات
 # =========================================================
-def show_ayah_results(results):
+# تم إضافة ayah_color فقط لتغيير لون نتائج الآيات
+# مع الحفاظ على باقي التصميم كما هو
+# =========================================================
+def show_ayah_results(
+    results,
+    ayah_color=HIJRI_COLOR
+):
 
     for _, r in results.iterrows():
 
@@ -828,7 +842,7 @@ def show_ayah_results(results):
                 <div style="
                     font-size:20px;
                     font-weight:bold;
-                    color:#CFA500;
+                    color:{ayah_color};
                     margin-bottom:10px;
                 ">
 
@@ -844,7 +858,7 @@ def show_ayah_results(results):
                 <div style="
                     font-size:32px;
                     line-height:2.3;
-                    color:#CFA500;
+                    color:{ayah_color};
                     font-weight:normal;
                 ">
 
@@ -866,7 +880,7 @@ def show_ayah_results(results):
                 </div>
 
                 <div style="
-                    border-bottom:1px solid #CFA500;
+                    border-bottom:1px solid {ayah_color};
                     opacity:0.5;
                     margin-top:15px;
                 ">
@@ -927,10 +941,61 @@ def show_footer():
 
 
 # =========================================================
-# عنوان الصفحة
+# عنوان الصفحة - مصفوفة RGB
 # =========================================================
-st.markdown(
-    "## 📅 مصفوفة م س ك (R G B)"
+st.html(
+    f"""
+    <div style="
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        gap:14px;
+        direction:rtl;
+        margin-top:5px;
+        margin-bottom:18px;
+    ">
+
+        <!-- الدائرة الخضراء - هجري -->
+        <div style="
+            width:28px;
+            height:28px;
+            min-width:28px;
+            border-radius:50%;
+            background:{HIJRI_COLOR};
+            display:inline-block;
+        "></div>
+
+        <!-- الدائرة الزرقاء - ميلادي -->
+        <div style="
+            width:28px;
+            height:28px;
+            min-width:28px;
+            border-radius:50%;
+            background:{GREGORIAN_COLOR};
+            display:inline-block;
+        "></div>
+
+        <!-- الدائرة الحمراء - تقليدي -->
+        <div style="
+            width:28px;
+            height:28px;
+            min-width:28px;
+            border-radius:50%;
+            background:{TRADITIONAL_COLOR};
+            display:inline-block;
+        "></div>
+
+        <div style="
+            font-size:30px;
+            font-weight:bold;
+            color:#222222;
+            margin-right:8px;
+        ">
+            مصفوفة م س ك (R G B)
+        </div>
+
+    </div>
+    """
 )
 
 
@@ -1064,8 +1129,12 @@ if search_type == "🌙 البحث بالسنة الهجرية":
             """
         )
 
+        # =================================================
+        # عرض الآيات باللون الأخضر
+        # =================================================
         show_ayah_results(
-            hijri_results
+            hijri_results,
+            HIJRI_COLOR
         )
 
         st.divider()
@@ -1103,8 +1172,12 @@ if search_type == "🌙 البحث بالسنة الهجرية":
             """
         )
 
+        # =================================================
+        # عرض الآيات باللون الأزرق
+        # =================================================
         show_ayah_results(
-            gregorian_results
+            gregorian_results,
+            GREGORIAN_COLOR
         )
 
         show_footer()
@@ -1227,8 +1300,12 @@ elif search_type == "☀️ البحث بالسنة الميلادية":
                 """
             )
 
+            # =================================================
+            # عرض الآيات باللون الأزرق
+            # =================================================
             show_ayah_results(
-                gregorian_results
+                gregorian_results,
+                GREGORIAN_COLOR
             )
 
             show_footer()
@@ -1288,8 +1365,12 @@ elif search_type == "☀️ البحث بالسنة الميلادية":
                 """
             )
 
+            # =================================================
+            # عرض الآيات باللون الأزرق
+            # =================================================
             show_ayah_results(
-                gregorian_results
+                gregorian_results,
+                GREGORIAN_COLOR
             )
 
             st.divider()
@@ -1327,8 +1408,12 @@ elif search_type == "☀️ البحث بالسنة الميلادية":
                 """
             )
 
+            # =================================================
+            # عرض الآيات باللون الأخضر
+            # =================================================
             show_ayah_results(
-                hijri_results
+                hijri_results,
+                HIJRI_COLOR
             )
 
             show_footer()
@@ -1435,10 +1520,11 @@ else:
         )
 
         # =================================================
-        # عرض الآيات
+        # عرض الآيات باللون الأحمر
         # =================================================
         show_ayah_results(
-            traditional_results
+            traditional_results,
+            TRADITIONAL_COLOR
         )
 
         # =================================================
