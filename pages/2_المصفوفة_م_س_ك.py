@@ -5,6 +5,8 @@ import os
 import math
 from datetime import datetime
 from PIL import Image
+import io
+import base64
 
 
 # =========================================================
@@ -23,7 +25,7 @@ st.set_page_config(
 # =========================================================
 
 try:
-    header_img = Image.open("assets/header.png")
+    header_img = Image.open("assets/header2.png")
     st.image(header_img, use_container_width=True)
 except Exception:
     pass
@@ -244,34 +246,6 @@ def gregorian_to_hijri(year, month, day):
 
 
 # =========================================================
-# تحويل السنة الهجرية إلى السنة الميلادية المقابلة
-# =========================================================
-
-def hijri_year_to_gregorian_year(hijri_year):
-
-    # اليوم الأول من السنة الهجرية
-    start_date = hijri_to_gregorian(
-        hijri_year,
-        1,
-        1
-    )
-
-    # اليوم الأول من السنة الهجرية التالية
-    next_start_date = hijri_to_gregorian(
-        hijri_year + 1,
-        1,
-        1
-    )
-
-    # منتصف السنة الهجرية
-    middle_date = start_date + (
-        next_start_date - start_date
-    ) / 2
-
-    return middle_date.year
-
-
-# =========================================================
 # تحويل التاريخ الهجري إلى ميلادي
 # =========================================================
 
@@ -338,6 +312,69 @@ def hijri_to_gregorian(
         int(month),
         int(day)
     )
+
+
+# =========================================================
+# تحويل السنة الهجرية إلى السنة الميلادية المقابلة
+# =========================================================
+
+def hijri_year_to_gregorian_year(hijri_year):
+
+    # اليوم الأول من السنة الهجرية
+    start_date = hijri_to_gregorian(
+        hijri_year,
+        1,
+        1
+    )
+
+    # اليوم الأول من السنة الهجرية التالية
+    next_start_date = hijri_to_gregorian(
+        hijri_year + 1,
+        1,
+        1
+    )
+
+    # منتصف السنة الهجرية
+    middle_date = start_date + (
+        next_start_date - start_date
+    ) / 2
+
+    return middle_date.year
+
+
+# =========================================================
+# تحويل السنة الميلادية إلى السنة الهجرية المقابلة
+# =========================================================
+
+def gregorian_year_to_hijri_year(gregorian_year):
+
+    # بداية السنة الميلادية
+    start_date = datetime(
+        gregorian_year,
+        1,
+        1
+    )
+
+    # بداية السنة الميلادية التالية
+    next_start_date = datetime(
+        gregorian_year + 1,
+        1,
+        1
+    )
+
+    # منتصف السنة الميلادية
+    middle_date = start_date + (
+        next_start_date - start_date
+    ) / 2
+
+    # تحويل منتصف السنة إلى هجري
+    hijri_year = gregorian_to_hijri(
+        middle_date.year,
+        middle_date.month,
+        middle_date.day
+    )[0]
+
+    return hijri_year
 
 
 # =========================================================
@@ -414,7 +451,8 @@ def calculate_ayah_range(year_value):
 def show_year_box(
     input_year,
     input_label,
-    equivalent_year
+    equivalent_year,
+    equivalent_label
 ):
 
     st.html(
@@ -450,8 +488,8 @@ def show_year_box(
                 font-weight:bold;
                 margin-top:12px;
             ">
-                السنة الميلادية المقابلة:
-                {equivalent_year} م
+                السنة المقابلة:
+                {equivalent_year} {equivalent_label}
             </div>
 
         </div>
@@ -476,6 +514,53 @@ def show_calculation_box(
     ) = calculate_ayah_range(
         year_value
     )
+
+
+    # =====================================================
+    # بيانات الآية الأولى في النطاق
+    # =====================================================
+
+    lower_row = df[
+        df["quran_ayah_number"] == lower_ayah
+    ].iloc[0]
+
+    lower_surah_name = str(
+        lower_row["surah_name"]
+    ).strip()
+
+    lower_surah_number = int(
+        lower_row["surah_id"]
+    )
+
+    lower_surah_ayah_number = int(
+        lower_row["ayah_number"]
+    )
+
+
+    # =====================================================
+    # بيانات الآية الأخيرة في النطاق
+    # =====================================================
+
+    upper_row = df[
+        df["quran_ayah_number"] == upper_ayah
+    ].iloc[0]
+
+    upper_surah_name = str(
+        upper_row["surah_name"]
+    ).strip()
+
+    upper_surah_number = int(
+        upper_row["surah_id"]
+    )
+
+    upper_surah_ayah_number = int(
+        upper_row["ayah_number"]
+    )
+
+
+    # =====================================================
+    # عرض صندوق الحساب
+    # =====================================================
 
     st.html(
         f"""
@@ -512,7 +597,7 @@ def show_calculation_box(
 
             {CONSTANT:.11f}
 
-            <br><br>
+            <br>
 
             ناتج الضرب =
 
@@ -526,7 +611,7 @@ def show_calculation_box(
 
             {multiplication_result:.11f}
 
-            <br><br>
+            <br>
 
             ناتج الطرح =
 
@@ -540,13 +625,13 @@ def show_calculation_box(
 
             {subtraction_result:.11f}
 
-            <br><br>
-
             <span style="
                 color:#CFA500;
                 font-size:28px;
                 font-weight:bold;
             ">
+
+            <br>
 
                 نطاق الآيات:
 
@@ -558,9 +643,96 @@ def show_calculation_box(
 
             </span>
 
+
+            <br>
+            <br>
+
+
+            <!-- =========================================
+                 الآية الأولى في النطاق
+                 ========================================= -->
+
+            <div style="
+                color:#222222;
+                font-size:21px;
+                font-weight:bold;
+                line-height:2.2;
+                margin-top:10px;
+            ">
+
+                من الآية
+
+                <span style="color:#CFA500;">
+                    {lower_ayah}
+                </span>
+
+                من سورة
+
+                <span style="color:#CFA500;">
+                    {lower_surah_name}
+                </span>
+
+                ورقم السورة في القرآن الكريم
+
+                <span style="color:#CFA500;">
+                    {lower_surah_number}
+                </span>
+
+                ورقم الآية
+
+                <span style="color:#CFA500;">
+                    {lower_surah_ayah_number}
+                </span>
+
+                من ترتيب القرآن
+
+            </div>
+
+
+            <!-- =========================================
+                 الآية الأخيرة في النطاق
+                 ========================================= -->
+
+            <div style="
+                color:#222222;
+                font-size:21px;
+                font-weight:bold;
+                line-height:2.2;
+                margin-top:8px;
+            ">
+
+                إلى الآية
+
+                <span style="color:#CFA500;">
+                    {upper_ayah}
+                </span>
+
+                من سورة
+
+                <span style="color:#CFA500;">
+                    {upper_surah_name}
+                </span>
+
+                ورقم السورة في القرآن الكريم
+
+                <span style="color:#CFA500;">
+                    {upper_surah_number}
+                </span>
+
+                ورقم الآية
+
+                <span style="color:#CFA500;">
+                    {upper_surah_ayah_number}
+                </span>
+
+                من ترتيب القرآن
+
+            </div>
+
         </div>
         """
     )
+
 
     return (
         lower_ayah,
@@ -640,230 +812,27 @@ def show_ayah_results(results):
 
 
 # =========================================================
-# عنوان الصفحة
+# عرض الـ Footer
 # =========================================================
 
-st.markdown(
-    "## 📅 مصفوفة م س ك (R G B)"
-)
+def show_footer():
 
-
-# =========================================================
-# إدخال السنة الهجرية
-# =========================================================
-
-hijri_input = st.text_input(
-    "أدخل السنة الهجرية",
-    placeholder="مثال: 1395",
-    key="hijri_year_input"
-)
-
-
-# =========================================================
-# التحقق من السنة
-# =========================================================
-
-if hijri_input:
-
-    # -----------------------------------------------------
-    # يجب أن تكون أرقام فقط
-    # -----------------------------------------------------
-
-    if not hijri_input.isdigit():
-
-        st.error(
-            "⚠️ من فضلك أدخل السنة الهجرية كرقم صحيح."
-        )
-
-        st.stop()
-
-    input_year = int(
-        hijri_input
-    )
-
-    # -----------------------------------------------------
-    # التحقق من الحد الأدنى
-    # -----------------------------------------------------
-
-    if input_year < 1:
-
-        st.error(
-            "⚠️ السنة الهجرية يجب أن تبدأ من 1 هـ."
-        )
-
-        st.stop()
-
-    # -----------------------------------------------------
-    # التحقق من السنوات المستقبلية
-    # -----------------------------------------------------
-
-    if input_year > CURRENT_HIJRI_YEAR:
-
-        st.error(
-            f"""
-            ⚠️ لا يمكن البحث في سنوات غيبية.
-
-            السنة المدخلة:
-            {input_year} هـ
-
-            السنة الهجرية الحالية:
-            {CURRENT_HIJRI_YEAR} هـ
-            """
-        )
-
-        st.stop()
-
-
-    # =====================================================
-    # تحديد السنة الميلادية المقابلة
-    # =====================================================
-
-    equivalent_gregorian_year = (
-        hijri_year_to_gregorian_year(
-            input_year
-        )
-    )
-
-
-    # =====================================================
-    # عرض السنة الهجرية والميلادية
-    # =====================================================
-
-    st.markdown(
-        "### 📊 نتائج المصفوفة"
-    )
-
-    show_year_box(
-        input_year,
-        "هـ",
-        equivalent_gregorian_year
-    )
-
-
-    # =====================================================
-    # الحساب الأول
-    # السنة الهجرية
-    # =====================================================
-
-    st.markdown(
-        f"## 🌙 أولاً: نتائج السنة الهجرية {input_year} هـ"
-    )
-
-
-    lower_hijri, upper_hijri = (
-        show_calculation_box(
-            input_year,
-            "هـ"
-        )
-    )
-
-
-    # =====================================================
-    # استخراج آيات السنة الهجرية
-    # =====================================================
-
-    hijri_results = df[
-        (df["quran_ayah_number"] >= lower_hijri)
-        &
-        (df["quran_ayah_number"] <= upper_hijri)
-    ]
-
-
-    # =====================================================
-    # عدد النتائج الهجرية
-    # =====================================================
-
-    st.markdown(
-        f"""
-        ### 📌 عدد النتائج:
-        {len(hijri_results)}
-        """
-    )
-
-
-    # =====================================================
-    # عرض النتائج الهجرية
-    # =====================================================
-
-    show_ayah_results(
-        hijri_results
-    )
-
-
-    # =====================================================
-    # فاصل
-    # =====================================================
-
-    st.divider()
-
-
-    # =====================================================
-    # الحساب الثاني
-    # السنة الميلادية المقابلة
-    # =====================================================
-
-    st.markdown(
-        f"""
-        ## ☀️ ثانياً: نتائج السنة الميلادية
-        {equivalent_gregorian_year} م
-        """
-    )
-
-
-    lower_gregorian, upper_gregorian = (
-        show_calculation_box(
-            equivalent_gregorian_year,
-            "م"
-        )
-    )
-
-
-    # =====================================================
-    # استخراج آيات السنة الميلادية
-    # =====================================================
-
-    gregorian_results = df[
-        (df["quran_ayah_number"] >= lower_gregorian)
-        &
-        (df["quran_ayah_number"] <= upper_gregorian)
-    ]
-
-
-    # =====================================================
-    # عدد النتائج الميلادية
-    # =====================================================
-
-    st.markdown(
-        f"""
-        ### 📌 عدد النتائج:
-        {len(gregorian_results)}
-        """
-    )
-
-
-    # =====================================================
-    # عرض النتائج الميلادية
-    # =====================================================
-
-    show_ayah_results(
-        gregorian_results
-    )
-
-    # =========================
-    # Footer
-    # =========================
-    # =========================
-    # Footer
-    # =========================
     try:
-        footer_img = Image.open("assets/footer.png")
 
-        import io
-        import base64
+        footer_img = Image.open(
+            "assets/footer.png"
+        )
 
         buffer = io.BytesIO()
-        footer_img.save(buffer, format="PNG")
-        footer_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        footer_img.save(
+            buffer,
+            format="PNG"
+        )
+
+        footer_base64 = base64.b64encode(
+            buffer.getvalue()
+        ).decode()
 
         st.html(
             f"""
@@ -875,6 +844,7 @@ if hijri_input:
                 margin-top:30px;
                 margin-bottom:20px;
             ">
+
                 <img
                     src="data:image/png;base64,{footer_base64}"
                     style="
@@ -882,9 +852,425 @@ if hijri_input:
                         height:auto;
                     "
                 >
+
             </div>
             """
         )
 
-    except:
+    except Exception:
         pass
+
+
+# =========================================================
+# عنوان الصفحة
+# =========================================================
+
+st.markdown(
+    "## 📅 مصفوفة م س ك (R G B)"
+)
+
+
+# =========================================================
+# اختيار نوع البحث
+# =========================================================
+
+search_type = st.radio(
+    "اختر نوع البحث",
+    [
+        "🌙 البحث بالسنة الهجرية",
+        "☀️ البحث بالسنة الميلادية"
+    ],
+    horizontal=True
+)
+
+
+# =========================================================
+# =========================================================
+# البحث بالسنة الهجرية
+# =========================================================
+# =========================================================
+
+if search_type == "🌙 البحث بالسنة الهجرية":
+
+    # =====================================================
+    # إدخال السنة الهجرية
+    # =====================================================
+
+    hijri_input = st.text_input(
+        "أدخل السنة الهجرية",
+        #placeholder="مثال: 1395",
+        key="hijri_year_input"
+    )
+
+
+    # =====================================================
+    # التحقق من السنة
+    # =====================================================
+
+    if hijri_input:
+
+        if not hijri_input.isdigit():
+
+            st.error(
+                "⚠️ من فضلك أدخل السنة الهجرية كرقم صحيح."
+            )
+
+            st.stop()
+
+
+        input_year = int(
+            hijri_input
+        )
+
+
+        # -------------------------------------------------
+        # الحد الأدنى
+        # -------------------------------------------------
+
+        if input_year < 1:
+
+            st.error(
+                "⚠️ السنة الهجرية يجب أن تبدأ من 1 هـ."
+            )
+
+            st.stop()
+
+
+        # -------------------------------------------------
+        # السنوات المستقبلية
+        # -------------------------------------------------
+
+        if input_year > CURRENT_HIJRI_YEAR:
+
+            st.error(
+                f"""
+                ⚠️ لا يمكن البحث في سنوات غيبية.
+
+                السنة المدخلة:
+                {input_year} هـ
+
+                السنة الهجرية الحالية:
+                {CURRENT_HIJRI_YEAR} هـ
+                """
+            )
+
+            st.stop()
+
+
+        # =================================================
+        # السنة الميلادية المقابلة
+        # =================================================
+
+        equivalent_gregorian_year = (
+            hijri_year_to_gregorian_year(
+                input_year
+            )
+        )
+
+
+        # =================================================
+        # عنوان النتائج
+        # =================================================
+
+        st.markdown(
+            "### 📊 نتائج المصفوفة"
+        )
+
+
+        # =================================================
+        # صندوق السنة
+        # =================================================
+
+        show_year_box(
+            input_year,
+            "هـ",
+            equivalent_gregorian_year,
+            "م"
+        )
+
+
+        # =================================================
+        # أولاً: السنة الهجرية
+        # =================================================
+
+        st.markdown(
+            f"## 🌙 أولاً: نتائج السنة الهجرية {input_year} هـ"
+        )
+
+
+        lower_hijri, upper_hijri = (
+            show_calculation_box(
+                input_year,
+                "هـ"
+            )
+        )
+
+
+        # =================================================
+        # نتائج الآيات الهجرية
+        # =================================================
+
+        hijri_results = df[
+            (df["quran_ayah_number"] >= lower_hijri)
+            &
+            (df["quran_ayah_number"] <= upper_hijri)
+        ]
+
+
+        st.markdown(
+            f"""
+            ###📌عدد النتائج:
+            {len(hijri_results)}
+            """
+        )
+
+
+        show_ayah_results(
+            hijri_results
+        )
+
+
+        st.divider()
+
+
+        # =================================================
+        # ثانياً: السنة الميلادية
+        # =================================================
+
+        st.markdown(
+            f"""
+            ## ☀️ ثانياً: نتائج السنة الميلادية
+            {equivalent_gregorian_year} م
+            """
+        )
+
+
+        lower_gregorian, upper_gregorian = (
+            show_calculation_box(
+                equivalent_gregorian_year,
+                "م"
+            )
+        )
+
+
+        # =================================================
+        # نتائج الآيات الميلادية
+        # =================================================
+
+        gregorian_results = df[
+            (df["quran_ayah_number"] >= lower_gregorian)
+            &
+            (df["quran_ayah_number"] <= upper_gregorian)
+        ]
+
+
+        st.markdown(
+            f"""
+            ###📌عدد النتائج:
+            {len(gregorian_results)}
+            """
+        )
+
+
+        show_ayah_results(
+            gregorian_results
+        )
+
+
+        show_footer()
+
+
+# =========================================================
+# =========================================================
+# البحث بالسنة الميلادية
+# =========================================================
+# =========================================================
+
+else:
+
+    # =====================================================
+    # إدخال السنة الميلادية
+    # =====================================================
+
+    gregorian_input = st.text_input(
+        "أدخل السنة الميلادية",
+        #placeholder="مثال: 1980",
+        key="gregorian_year_input"
+    )
+
+
+    # =====================================================
+    # التحقق من السنة
+    # =====================================================
+
+    if gregorian_input:
+
+        if not gregorian_input.isdigit():
+
+            st.error(
+                "⚠️ من فضلك أدخل السنة الميلادية كرقم صحيح."
+            )
+
+            st.stop()
+
+
+        input_year = int(
+            gregorian_input
+        )
+
+
+        # -------------------------------------------------
+        # الحد الأدنى
+        # -------------------------------------------------
+
+        if input_year < 1:
+
+            st.error(
+                "⚠️ السنة الميلادية يجب أن تبدأ من 1 م."
+            )
+
+            st.stop()
+
+
+        # -------------------------------------------------
+        # السنوات المستقبلية
+        # -------------------------------------------------
+
+        if input_year > CURRENT_GREGORIAN_YEAR:
+
+            st.error(
+                f"""
+                ⚠️ لا يمكن البحث في سنوات غيبية.
+
+                السنة المدخلة:
+                {input_year} م
+
+                السنة الميلادية الحالية:
+                {CURRENT_GREGORIAN_YEAR} م
+                """
+            )
+
+            st.stop()
+
+
+        # =================================================
+        # السنة الهجرية المقابلة
+        # =================================================
+
+        equivalent_hijri_year = (
+            gregorian_year_to_hijri_year(
+                input_year
+            )
+        )
+
+
+        # =================================================
+        # عنوان النتائج
+        # =================================================
+
+        st.markdown(
+            "### 📊 نتائج المصفوفة"
+        )
+
+
+        # =================================================
+        # صندوق السنة
+        # =================================================
+
+        show_year_box(
+            input_year,
+            "م",
+            equivalent_hijri_year,
+            "هـ"
+        )
+
+
+        # =================================================
+        # أولاً: السنة الميلادية
+        # =================================================
+
+        st.markdown(
+            f"## ☀️ أولاً: نتائج السنة الميلادية {input_year} م"
+        )
+
+
+        lower_gregorian, upper_gregorian = (
+            show_calculation_box(
+                input_year,
+                "م"
+            )
+        )
+
+
+        # =================================================
+        # نتائج الآيات الميلادية
+        # =================================================
+
+        gregorian_results = df[
+            (df["quran_ayah_number"] >= lower_gregorian)
+            &
+            (df["quran_ayah_number"] <= upper_gregorian)
+        ]
+
+
+        st.markdown(
+            f"""
+            ###📌عدد النتائج:
+            {len(gregorian_results)}
+            """
+        )
+
+
+        show_ayah_results(
+            gregorian_results
+        )
+
+
+        st.divider()
+
+
+        # =================================================
+        # ثانياً: السنة الهجرية
+        # =================================================
+
+        st.markdown(
+            f"""
+            ## 🌙 ثانياً: نتائج السنة الهجرية
+            {equivalent_hijri_year} هـ
+            """
+        )
+
+
+        lower_hijri, upper_hijri = (
+            show_calculation_box(
+                equivalent_hijri_year,
+                "هـ"
+            )
+        )
+
+
+        # =================================================
+        # نتائج الآيات الهجرية
+        # =================================================
+
+        hijri_results = df[
+            (df["quran_ayah_number"] >= lower_hijri)
+            &
+            (df["quran_ayah_number"] <= upper_hijri)
+        ]
+
+
+        st.markdown(
+            f"""
+            ###📌عدد النتائج:
+            {len(hijri_results)}
+            """
+        )
+
+
+        show_ayah_results(
+            hijri_results
+        )
+
+
+        show_footer()
